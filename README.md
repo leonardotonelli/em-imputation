@@ -2,8 +2,8 @@
 
 ## Intermediate submission 
 
-1. By **Sunday November 10**, you should have chosen a team and a topic.
-2. On **Friday November 22** your team will submit a 1-2 page writeup. Your writeup should provide a preliminary introduction to the topic you will study and provide clear motivation for why they are interesting and/or relevant. 
+1. By **Sunday November 9**, you should have chosen a team and a topic.
+2. On **Friday November 21** your team will submit a 1-2 page writeup. Your writeup should provide a preliminary introduction to the topic you will study and provide clear motivation for why they are interesting and/or relevant. 
 
 ## Final submission 
 
