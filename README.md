@@ -19,7 +19,7 @@ Your `README.md` should contain instructions on reproducing the PDF report from 
 3. [ ] `README.md` with instructions on how to run the code, reproduce the PDF report, and a brief description of the team members' contributions, if applicable (please delete everything not related to your project in it)
 
 
-# Project
+## Project
 
 The goal of this project is quite broad, students are free to come up with their own ideas. While simulation studies are the designated topic, groups that found interesting data during the small project and would like to carry on analyzing it, or groups interested in studying a bit deeper one of the methodological concepts from this course are encouraged to approach the teachers during the exercises and discuss their ideas. **Prospective topics for the final project will be gradually revealed during the lectures.**
 
@@ -39,7 +39,4 @@ A project seriously lacking in any of the criteria above will be penalized.
 - *Optional (if you have time and energy):* In a setting with missing data, what about comparing parameter estimates obtained via EM with those obtained (with maximum likelihood) after imputation? You can choose one (or more) of the imputation methods described [here](https://rmisstastic.netlify.app/how-to/impute/missImp.pdf).
 - The project should address the following question: When you are faced with a missing data problem, when is the EM algorithm a good option for statistical inference (the estimation process)?
 
-### 5. Diving into one of the course topics, e.g., MM algorithms or Monte Carlo integration (Week 7)
-
-Consult with the teacher to define the project and ensure its feasibility.
 
