@@ -48,7 +48,7 @@ Missing data is a ubiquitous problem in real-world statistical inference, often 
 \subsection{The EM Algorithm: Overview and Limitations}
 The EM algorithm alternates between two steps: the \textbf{Expectation (E) step}, which computes the expected value of the log-likelihood function with respect to the conditional distribution of the missing data given the observed data and current parameter estimates; and the \textbf{Maximization (M) step}, which updates the parameters to maximize this expected log-likelihood.
 
-While the EM algorithm is mathematically elegant and guarantees monotonic convergence of the likelihood, it is not without limitations. It can be sensitive to initialization, risking convergence to local optima rather than the global maximum. Furthermore, the standard EM algorithm relies heavily on specific distributional assumptions (typically Gaussian) regarding the data generation process. This project is motivated by these limitations: we aim to understand how robust the EM algorithm is when these assumptions are stressed by varying degrees and patterns of missingness.
+While the EM algorithm is mathematically elegant and guaranties monotonic convergence of the likelihood, its practical deployment warrants careful consideration. Indeed, while EM is the gold-standard solution for MLE in the presence of missing data, faster and less complex imputation methods are often preferred for their ease of implementation and lower dependence on strict distributional assumptions. This project, therefore, addresses a critical objective: empirically demonstrating the operational boundary where EM's rigorous theoretical complexity yields an actual gain in accuracy over these more practical alternatives and assessing its robustness as core distributional and missing-data assumptions are stressed by varying degrees and patterns of missingness.
 
 \section{Project Scope and Objectives}
 
@@ -60,10 +60,11 @@ To answer this, we will analyze the performance of the EM algorithm across three
 We will begin our analysis using a \textbf{synthetic Multivariate Gaussian dataset}. This controlled environment allows us to know the "ground truth" parameters ($\mu, \Sigma$), facilitating a precise calculation of estimation error.
 
 However, real-world data rarely follows a perfect Gaussian distribution. To assess practical applicability, we will extend our analysis to real-world datasets. We propose using:
+
 \begin{enumerate}
-    \item \textbf{Fisher's Iris Dataset:} A classic dataset with established multivariate properties, useful for validating our initial Gaussian assumptions.
-    \item \textbf{Wine Quality Dataset (UCI):} A higher-dimensional dataset where variables may exhibit complex correlations, testing the algorithm's scalability.
-    \item \textbf{Boston Housing Dataset:} To test performance on data that may contain heavier tails or outliers.
+    \item \textbf{Fisher's Iris Dataset:} A classic dataset used for an initial low-dimensional test where the Gaussian assumption is most plausible. This allows for a baseline validation of the standard EM algorithm.
+    \item \textbf{Wine Quality Dataset (UCI):}  A higher-dimensional dataset crucial for testing the performance of EM and imputation methods in a context characterized by non-linear correlations and potential multicollinearity. This complexity significantly stresses the assumptions of the standard Gaussian EM.
+    \item \textbf{Boston Housing Dataset:} Included specifically to test performance on data that may contain heavier tails or outliers. This serves as a vital test for robustness in non-Gaussian contexts, preparing the ground for extensions using models like the t-Student EM.
 \end{enumerate}
 
 \section{Methodology}
