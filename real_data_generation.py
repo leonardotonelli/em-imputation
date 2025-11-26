@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import seaborn as sns
-from sklearn.datasets import load_wine
+from sklearn.datasets import load_wine, load_iris
 import os
 
 # --- CORE LOGIC ---
@@ -97,6 +97,15 @@ def generate_wine(mechs, percs):
                   target='magnesium', 
                   covariate='alcohol')
 
+# --- DATASET 3: UCI WINE ---
+def generate_iris(mechs, percs):
+    raw_data = load_iris()
+    df_base = pd.DataFrame(raw_data.data, columns=raw_data.feature_names)
+
+    save_variants(df_base, "iris", mechs, percs, 
+                  target='sepal width (cm)', 
+                  covariate='sepal length (cm)')
+
 # --- EXECUTION ---
 if __name__ == "__main__":
     patterns = ['MCAR', 'MAR', 'MNAR']
@@ -110,3 +119,6 @@ if __name__ == "__main__":
     
     print("\n--- Generating Wine Data ---")
     generate_wine(patterns, percentages)
+
+    print("\n--- Generating Iris Data ---")
+    generate_iris(patterns, percentages)
