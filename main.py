@@ -29,7 +29,7 @@ COVARIANCES = [
 N_SAMPLES = [500, 1000]
 PERCENTAGES_MISSINGNESS = [0.1, 0.2, 0.3]
 
-# Run simulation study (if not in results folder)
+# # Run simulation study (if not in results folder)
 # results = simulation_study_multivariate(
 #     result_path="results\\synthetic_multivariate",
 #     data_path="data\\synthetic_multivariate",
