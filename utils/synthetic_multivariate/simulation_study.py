@@ -5,20 +5,22 @@ from pathlib import Path
 import time
 # adjust import if running as main module
 try:
-    from .EM import em_multivariate_gaussian
-    from .data_generation import generate_multivariate_gaussian, inject_missingness
+    from EM import em_multivariate_gaussian
+    from data_generation import generate_multivariate_gaussian, inject_missingness
+    from imputations import mean_imputation, median_imputation, mode_imputation, knn_imputation, mice_imputation
 except ImportError:
     from utils.synthetic_multivariate.EM import em_multivariate_gaussian
     from utils.synthetic_multivariate.data_generation import generate_multivariate_gaussian, inject_missingness
+    from utils.synthetic_multivariate.imputations import mean_imputation, median_imputation, mode_imputation, knn_imputation, mice_imputation
 
 
 def simulation_study_multivariate(
     result_path,
-    data_path,
     means_to_test,
     cov_to_test,
     n_samples_to_test,
     percentages_to_test,
+    data_path=None,
     max_iter=200,
     tol=1e-5,
     random_state=42
@@ -50,7 +52,7 @@ def simulation_study_multivariate(
     
     # Create output directory
     Path(result_path).mkdir(parents=True, exist_ok=True)
-    Path(data_path).mkdir(parents=True, exist_ok=True)
+    # Path(data_path).mkdir(parents=True, exist_ok=True)
     
     # Results storage
     results_list = []
@@ -68,7 +70,7 @@ def simulation_study_multivariate(
     # Iterate through all combinations
     for mean_idx, means in enumerate(means_to_test):
         for cov_idx, cov_matrix in enumerate(cov_to_test):
-            for n_samples in n_samples_to_test:
+            for i, n_samples in enumerate(n_samples_to_test):
                 
                 # Convert to appropriate types
                 means_array = np.array(means) if not isinstance(means, np.ndarray) else means
@@ -89,17 +91,21 @@ def simulation_study_multivariate(
                 )
                 
                 # Save complete dataset
-                complete_filename = (f"complete_mean{mean_idx}_cov{cov_idx}_"
-                                   f"n{n_samples}.csv")
-                df_complete.to_csv(
-                    os.path.join(data_path, complete_filename), 
-                    index=False
-                )
+                if data_path is not None:
+                    complete_filename = (f"complete_mean{mean_idx}_cov{cov_idx}_"
+                                    f"n{n_samples}.csv")
+                    df_complete.to_csv(
+                        os.path.join(data_path, complete_filename), 
+                        index=False
+                    )
                 
+
                 # Use inject_missingness function for all mechanisms
                 for miss_pct in percentages_to_test:
                     
                     print(f"\nInjecting {miss_pct*100:.0f}% missingness...")
+
+                    k = 10 # to see
                     
                     # Use inject_missingness to generate missing data for all mechanisms at once
                     for mechanism in mechanisms:
@@ -122,14 +128,15 @@ def simulation_study_multivariate(
                         df_missing = df_missing_list[0]
                         
                         # Save missing dataset
-                        missing_filename = (f"missing_{mechanism}_mean{mean_idx}_"
+                        if data_path is not None:
+                            missing_filename = (f"missing_{mechanism}_mean{mean_idx}_"
                                           f"cov{cov_idx}_n{n_samples}_"
                                           f"miss{int(miss_pct*100)}.csv")
-                        df_missing.to_csv(
-                            os.path.join(data_path, missing_filename), 
-                            index=False
-                        )
-                        
+                            df_missing.to_csv(
+                                os.path.join(data_path, missing_filename), 
+                                index=False
+                            )
+                            
                         # Convert to numpy array
                         data_obs = df_missing.values
                         
@@ -156,6 +163,21 @@ def simulation_study_multivariate(
                         print(f"  Mu Error: {mu_error:.4f}, "
                               f"Sigma Error: {Sigma_error:.4f}")
                         
+                        # mean imputation error
+                        mean_err, mean_cov_err, mean_time = mean_imputation(data_obs, means_array, cov_matrix)
+
+                        # median imputation error
+                        median_err, median_cov_err, median_time = median_imputation(data_obs, means_array, cov_matrix)
+
+                        # mode imputation error
+                        mode_err, mode_cov_err, mode_time = mode_imputation(data_obs, means_array, cov_matrix)
+
+                        # knn imputation error
+                        knn_err, knn_cov_err, knn_time = knn_imputation(data_obs, means_array, cov_matrix, k=k)
+
+                        # mice imputation error
+                        mice_err, mice_cov_err, mice_time = mice_imputation(data_obs, means_array, cov_matrix, iterations=5)  
+
                         # Store results
                         result = {
                             'simulation_id': simulation_id,
@@ -173,7 +195,21 @@ def simulation_study_multivariate(
                             'estimated_mu': str(mu_estimated.tolist()),
                             'true_sigma': str(cov_matrix.tolist()),
                             'estimated_sigma': str(Sigma_estimated.tolist()),
-                            'dataset_file': missing_filename
+                            'mean_imputation_error': mean_err,
+                            'mean_imputation_cov_error': mean_cov_err,  
+                            'median_imputation_error': median_err,
+                            'median_imputation_cov_error': median_cov_err,
+                            'mode_imputation_error': mode_err,
+                            'mode_imputation_cov_error': mode_cov_err,
+                            'knn_imputation_error': knn_err,
+                            'knn_imputation_cov_error': knn_cov_err,
+                            'mice_imputation_error': mice_err,
+                            'mice_imputation_cov_error': mice_cov_err,
+                            'mean_imputation_time': mean_time,
+                            'median_imputation_time': median_time,
+                            'mode_imputation_time': mode_time,
+                            'knn_imputation_time': knn_time,
+                            'mice_imputation_time': mice_time
                         }
                         
                         results_list.append(result)
@@ -237,8 +273,8 @@ if __name__ == "__main__":
     
     # Run simulation study
     results = simulation_study_multivariate(
-        results_path="tests",
-        data_path = "tests",
+        result_path="tests",
+        data_path = None,
         means_to_test=means_to_test,
         cov_to_test=cov_to_test,
         n_samples_to_test=n_samples_to_test,

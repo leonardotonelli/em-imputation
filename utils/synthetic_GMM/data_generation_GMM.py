@@ -60,7 +60,7 @@ def inject_class_missingness(
     
     if mechanism == "LATENT":
         # Fully latent - no class variable included
-        df_result = df_result.drop('class', axis=1)
+        df_result["class"] = np.nan
     elif mechanism == "MCAR":
         df_result = _apply_mcar_class(df_result, missingness_percentage)
     elif mechanism == "MAR":

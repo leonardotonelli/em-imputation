@@ -2,22 +2,23 @@ import numpy as np
 import pandas as pd
 import os
 from pathlib import Path
-import time
+from time import time
 
 try:
-    from .EM_GMM import em_gmm
+    from .EM_GMM import em_semi_supervised
     from .data_generation_GMM import generate_gmm_data, inject_class_missingness
+    from .imputations import *
 except ImportError:
-    from EM_GMM import em_gmm
+    from EM_GMM import em_semi_supervised
     from data_generation_GMM import generate_gmm_data, inject_class_missingness
-
+    from imputations import *
 
 def simulation_study_gmm(
     result_path,
-    data_path,
     gmm_configs,
     n_samples_to_test,
     percentages_to_test,
+    data_path=None,
     max_iter=200,
     tol=1e-5,
     random_state=42
@@ -50,10 +51,11 @@ def simulation_study_gmm(
     """
     
     Path(result_path).mkdir(parents=True, exist_ok=True)
-    Path(data_path).mkdir(parents=True, exist_ok=True)
+    if data_path is not None:
+        Path(data_path).mkdir(parents=True, exist_ok=True)
     
     results_list = []
-    mechanisms = ["MCAR", "MAR", "MNAR", "LATENT"]
+    mechanisms = ["MCAR", "MAR", "MNAR"]
     simulation_id = 0
     
     print("=" * 80)
@@ -85,23 +87,20 @@ def simulation_study_gmm(
             # Save complete dataset
             df_complete = data.copy()
             df_complete['class'] = class_labels
-            complete_filename = f"complete_config{config_idx}_n{n_samples}.csv"
-            df_complete.to_csv(os.path.join(data_path, complete_filename), index=False)
+            if data_path is not None:
+                complete_filename = f"complete_config{config_idx}_n{n_samples}.csv"
+                df_complete.to_csv(os.path.join(data_path, complete_filename), index=False)
             
             # Test each mechanism
             for mechanism in mechanisms:
                 
-                if mechanism == "LATENT":
-                    # Only one version for fully latent
-                    percentages = [0.0]  # Dummy value, class won't be included
-                else:
-                    percentages = percentages_to_test
+                percentages = percentages_to_test
                 
                 for miss_pct in percentages:
                     
                     simulation_id += 1
                     
-                    miss_pct_str = "FULL" if mechanism == "LATENT" else f"{miss_pct*100:.0f}%"
+                    miss_pct_str = f"{miss_pct*100:.0f}%"
                     print(f"\n[Simulation {simulation_id}] Config={config_idx}, "
                           f"N={n_samples}, Mechanism={mechanism}, Miss={miss_pct_str}")
                     
@@ -115,72 +114,82 @@ def simulation_study_gmm(
                     )
                     
                     # Save missing dataset
-                    if mechanism == "LATENT":
-                        missing_filename = f"missing_{mechanism}_config{config_idx}_n{n_samples}.csv"
-                    else:
+                    if data_path is not None:   
                         missing_filename = (f"missing_{mechanism}_config{config_idx}_"
-                                          f"n{n_samples}_miss{int(miss_pct*100)}.csv")
-                    df_missing.to_csv(os.path.join(data_path, missing_filename), index=False)
+                                            f"n{n_samples}_miss{int(miss_pct*100)}.csv")
+                        df_missing.to_csv(os.path.join(data_path, missing_filename), index=False)
                     
                     # Prepare data for EM (features only, no class column)
                     feature_cols = [col for col in df_missing.columns if col != 'class']
                     data_obs = df_missing[feature_cols].values
                     
                     # Calculate actual missingness in class variable
-                    if mechanism == "LATENT":
-                        actual_miss_pct = 1.0  # Fully latent
-                        print(f"  Class variable: Fully latent (not included)")
-                    else:
-                        class_col = df_missing['class'].values
-                        actual_miss_pct = np.sum(np.isnan(class_col)) / len(class_col)
-                        print(f"  Actual class missingness: {actual_miss_pct*100:.2f}%")
+                    class_col = df_missing['class'].values
+                    actual_miss_pct = np.sum(np.isnan(class_col)) / len(class_col)
+                    print(f"  Actual class missingness: {actual_miss_pct*100:.2f}%")
                     
                     # Run EM algorithm
-                    start_time = time.time()
-                    pi_est, mu_est, Sigma_est, gamma_est, num_iterations = em_gmm(
-                        data_obs,
+                    X, y = data_obs, df_missing['class'].values
+                    start_time = time()
+                    pi_est, mu_est, Sigma_est, num_iterations = em_semi_supervised(
+                        X,
+                        y,
                         n_components=n_components,
                         max_iter=max_iter,
                         tol=tol,
-                        random_state=random_state + simulation_id
                     )
-                    em_time = time.time() - start_time
+                    em_time = time() - start_time
                     
                     # Calculate errors (need to match components due to label switching)
-                    pi_error, mu_error, sigma_error = calculate_gmm_errors(
-                        pi_true=weights,
-                        mu_true=means,
-                        Sigma_true=cov_matrices,
-                        pi_est=pi_est,
-                        mu_est=mu_est,
-                        Sigma_est=Sigma_est
-                    )
+                    pi_error = np.linalg.norm(np.array(weights) - np.array(pi_est))
                     
                     print(f"  Converged in {num_iterations} iterations ({em_time:.2f}s)")
-                    print(f"  Pi Error: {pi_error:.4f}, Mu Error: {mu_error:.4f}, "
-                          f"Sigma Error: {sigma_error:.4f}")
-                    
+                    print(f"  Pi Error: {pi_error:.4f}")
+
+                    # Imputation methods for class labels
+                    mode_prop_err = np.nan
+                    knn_prop_err = np.nan
+                    mice_prop_err = np.nan
+                    best_k = None
+                    data_array = df_missing[feature_cols + ['class']].to_numpy()
+
+                    # Select k for KNN using available labeled observations
+                    try:
+                        best_k = select_k_cv(data_array, label_col=-1, k_values=None, n_folds=10)
+                    except Exception:
+                        best_k = 10
+
+                    mode_prop_err, mode_time = mode_imputation_labels(data_array, label_column_index=-1, true_proportions=weights)
+                    knn_prop_err, knn_time = knn_imputation_labels(data_array, label_column_index=-1, true_proportions=weights, k=best_k)
+                    mice_prop_err, mice_time = mice_imputation_labels(data_array, label_column_index=-1, true_proportions=weights, iterations=5)
+
+                    print(f"  Mode prop error: {mode_prop_err:.4f}, KNN prop error (k={best_k}): {knn_prop_err:.4f}, MICE prop error: {mice_prop_err if not np.isnan(mice_prop_err) else 'NA'}")
+
                     # Store results
                     result = {
                         'simulation_id': simulation_id,
                         'config_idx': config_idx,
                         'n_components': n_components,
                         'n_samples': n_samples,
-                        'missingness_pct': miss_pct if mechanism != "LATENT" else 1.0,
+                        'missingness_pct': miss_pct,
                         'actual_missingness_pct': actual_miss_pct,
                         'mechanism': mechanism,
                         'num_iterations': num_iterations,
                         'convergence_time': em_time,
                         'pi_error': pi_error,
-                        'mu_error': mu_error,
-                        'sigma_error': sigma_error,
                         'true_pi': str(weights),
                         'estimated_pi': str(pi_est.tolist()),
                         'true_means': str([m.tolist() for m in means]),
                         'estimated_means': str([m.tolist() for m in mu_est]),
-                        'dataset_file': missing_filename
+                        'mode_imputation_prop_error': mode_prop_err,
+                        'knn_imputation_prop_error': knn_prop_err,
+                        'knn_imputation_k': int(best_k) if best_k is not None else None,
+                        'mice_imputation_prop_error': mice_prop_err,
+                        'mode_imputation_time': mode_time,
+                        'knn_imputation_time': knn_time,
+                        'mice_imputation_time': mice_time
                     }
-                    
+
                     results_list.append(result)
     
     # Save results
@@ -198,55 +207,14 @@ def simulation_study_gmm(
     print("\n=== SUMMARY STATISTICS ===")
     print(f"\nAverage iterations: {results_df['num_iterations'].mean():.1f}")
     print(f"Average Pi error: {results_df['pi_error'].mean():.4f}")
-    print(f"Average Mu error: {results_df['mu_error'].mean():.4f}")
-    print(f"Average Sigma error: {results_df['sigma_error'].mean():.4f}")
     
     print("\n=== Error by Mechanism ===")
     for mech in mechanisms:
         mech_df = results_df[results_df['mechanism'] == mech]
         if len(mech_df) > 0:
-            print(f"{mech}: Pi={mech_df['pi_error'].mean():.4f}, "
-                  f"Mu={mech_df['mu_error'].mean():.4f}, "
-                  f"Sigma={mech_df['sigma_error'].mean():.4f}")
+            print(f"{mech}: Pi={mech_df['pi_error'].mean():.4f}")
     
     return results_df
-
-
-def calculate_gmm_errors(pi_true, mu_true, Sigma_true, pi_est, mu_est, Sigma_est):
-    """
-    Calculate errors between true and estimated GMM parameters.
-    Handles label switching by finding best component matching.
-    """
-    n_components = len(pi_true)
-    
-    # Find best permutation to match components
-    from itertools import permutations
-    
-    best_error = float('inf')
-    best_perm = None
-    
-    for perm in permutations(range(n_components)):
-        error = 0
-        
-        # Calculate total error for this permutation
-        for k in range(n_components):
-            k_est = perm[k]
-            error += abs(pi_true[k] - pi_est[k_est])
-            error += np.linalg.norm(mu_true[k] - mu_est[k_est])
-            error += np.linalg.norm(Sigma_true[k] - Sigma_est[k_est])
-        
-        if error < best_error:
-            best_error = error
-            best_perm = perm
-    
-    # Calculate errors with best permutation
-    pi_error = sum(abs(pi_true[k] - pi_est[best_perm[k]]) for k in range(n_components))
-    mu_error = sum(np.linalg.norm(mu_true[k] - mu_est[best_perm[k]]) 
-                   for k in range(n_components)) / n_components
-    sigma_error = sum(np.linalg.norm(Sigma_true[k] - Sigma_est[best_perm[k]]) 
-                      for k in range(n_components)) / n_components
-    
-    return pi_error, mu_error, sigma_error
 
 
 if __name__ == "__main__":
@@ -287,7 +255,7 @@ if __name__ == "__main__":
     # Run simulation study
     results = simulation_study_gmm(
         result_path="tests",
-        data_path="tests",
+        data_path=None,
         gmm_configs=gmm_configs,
         n_samples_to_test=n_samples_to_test,
         percentages_to_test=percentages_to_test,

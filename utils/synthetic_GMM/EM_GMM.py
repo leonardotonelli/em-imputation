@@ -1,281 +1,215 @@
 import numpy as np
 import pandas as pd
+from scipy.stats import multivariate_normal
 
-
-def initialize_gmm_parameters(data_obs, n_components, random_state=42):
+def initialize_parameters(X, y, n_components, random_state=42):
     """
-    Initialize GMM parameters using k-means-style initialization on available data.
+    Initialize parameters using labeled data to guide the starting point.
+    If a class has no labeled data, we initialize it randomly.
     """
     np.random.seed(random_state)
+    n_samples, n_features = X.shape
     
-    N, p = data_obs.shape
-    
-    # Simple imputation for initialization: fill NaN with column mean
-    data_imputed = data_obs.copy()
-    col_means = np.nanmean(data_obs, axis=0)
-    for j in range(p):
-        data_imputed[np.isnan(data_imputed[:, j]), j] = col_means[j]
-    
-    # Random initialization of responsibilities
-    responsibilities = np.random.dirichlet(np.ones(n_components), size=N)
-    
-    # Initialize mixing coefficients
+    # Initialize arrays
     pi = np.ones(n_components) / n_components
-    
-    # Initialize means using weighted average
-    mu = []
-    for k in range(n_components):
-        weighted_mean = np.average(data_imputed, axis=0, weights=responsibilities[:, k])
-        mu.append(weighted_mean)
-    mu = np.array(mu)
-    
-    # Initialize covariances
+    mu = np.zeros((n_components, n_features))
     Sigma = []
-    for k in range(n_components):
-        cov = np.cov(data_imputed, rowvar=False)
-        if np.linalg.det(cov) < 1e-6:
-            cov += np.eye(p) * 1e-4
-        Sigma.append(cov)
     
-    return pi, mu, Sigma
-
-
-def gaussian_pdf(x, mu, Sigma):
-    """
-    Compute multivariate Gaussian PDF, handling NaN values.
-    """
-    p = len(mu)
+    # Helper: Global mean/cov for fallback
+    global_mean = np.mean(X, axis=0)
+    global_cov = np.cov(X, rowvar=False)
     
-    is_observed = ~np.isnan(x)
-    obs_idx = np.where(is_observed)[0]
-    
-    if len(obs_idx) == 0:
-        return 1.0  # Uniform when no observations
-    
-    x_obs = x[obs_idx]
-    mu_obs = mu[obs_idx]
-    Sigma_obs = Sigma[np.ix_(obs_idx, obs_idx)]
-    
-    try:
-        Sigma_inv = np.linalg.inv(Sigma_obs)
-        det_Sigma = np.linalg.det(Sigma_obs)
-    except np.linalg.LinAlgError:
-        Sigma_obs += np.eye(len(obs_idx)) * 1e-6
-        Sigma_inv = np.linalg.inv(Sigma_obs)
-        det_Sigma = np.linalg.det(Sigma_obs)
-    
-    d = len(obs_idx)
-    diff = x_obs - mu_obs
-    
-    exponent = -0.5 * diff.T @ Sigma_inv @ diff
-    coefficient = 1.0 / np.sqrt((2 * np.pi) ** d * det_Sigma)
-    
-    return coefficient * np.exp(exponent)
-
-
-def e_step_gmm(data_obs, pi, mu, Sigma):
-    """
-    E-step for GMM with missing data:
-    - Compute responsibilities (gamma)
-    - Compute conditional expectations (X_hat) and covariances (C) for each component
-    """
-    N, p = data_obs.shape
-    K = len(pi)
-    
-    # Responsibilities
-    gamma = np.zeros((N, K))
-    
-    # Conditional statistics for each observation and component
-    X_hat = np.zeros((N, K, p))
-    C = [[np.zeros((p, p)) for _ in range(K)] for _ in range(N)]
-    
-    for n in range(N):
-        x_obs_n = data_obs[n]
+    for c in range(n_components):
+        # Filter for labeled data of this class
+        # We assume -1 indicates "unlabeled"
+        X_c = X[y == c]
         
-        # Compute responsibilities
-        likelihoods = np.array([pi[k] * gaussian_pdf(x_obs_n, mu[k], Sigma[k]) for k in range(K)])
-        total_likelihood = np.sum(likelihoods)
-        
-        if total_likelihood > 0:
-            gamma[n] = likelihoods / total_likelihood
+        if len(X_c) > 1:
+            # If we have labels, use them to initialize mean/cov (Supervised init)
+            mu[c] = np.mean(X_c, axis=0)
+            cov_c = np.cov(X_c, rowvar=False) + np.eye(n_features) * 1e-6
+            Sigma.append(cov_c)
+            # Update mixing coef based on counts (optional, but helpful)
+            pi[c] = len(X_c) / len(y[y != -1])
         else:
-            gamma[n] = np.ones(K) / K
-        
-        # Compute conditional expectations for each component
-        is_observed = ~np.isnan(x_obs_n)
-        obs_idx = np.where(is_observed)[0]
-        mis_idx = np.where(~is_observed)[0]
-        
-        for k in range(K):
-            if len(mis_idx) == 0:
-                # No missing data
-                X_hat[n, k] = x_obs_n
-                C[n][k] = np.zeros((p, p))
-            else:
-                # Compute conditional mean and covariance
-                x_obs_val = x_obs_n[obs_idx]
-                mu_obs = mu[k][obs_idx]
-                mu_mis = mu[k][mis_idx]
-                
-                Sigma_obs_obs = Sigma[k][np.ix_(obs_idx, obs_idx)]
-                Sigma_mis_obs = Sigma[k][np.ix_(mis_idx, obs_idx)]
-                Sigma_mis_mis = Sigma[k][np.ix_(mis_idx, mis_idx)]
-                
-                try:
-                    Sigma_obs_obs_inv = np.linalg.inv(Sigma_obs_obs)
-                except np.linalg.LinAlgError:
-                    Sigma_obs_obs_inv = np.linalg.inv(Sigma_obs_obs + np.eye(len(obs_idx)) * 1e-6)
-                
-                # Conditional mean
-                x_mis_hat = mu_mis + Sigma_mis_obs @ Sigma_obs_obs_inv @ (x_obs_val - mu_obs)
-                
-                x_hat_n = np.zeros(p)
-                x_hat_n[obs_idx] = x_obs_val
-                x_hat_n[mis_idx] = x_mis_hat
-                X_hat[n, k] = x_hat_n
-                
-                # Conditional covariance
-                C_mis_mis = Sigma_mis_mis - Sigma_mis_obs @ Sigma_obs_obs_inv @ Sigma_mis_obs.T
-                C_mat = np.zeros((p, p))
-                C_mat[np.ix_(mis_idx, mis_idx)] = C_mis_mis
-                C[n][k] = C_mat
-    
-    return gamma, X_hat, C
-
-
-def m_step_gmm(gamma, X_hat, C, N):
-    """
-    M-step for GMM: Update pi, mu, and Sigma.
-    """
-    K = gamma.shape[1]
-    p = X_hat.shape[2]
-    
-    N_k = np.sum(gamma, axis=0)
-    
-    # Update mixing coefficients
-    pi = N_k / N
-    
-    # Update means
-    mu = np.zeros((K, p))
-    for k in range(K):
-        mu[k] = np.sum(gamma[:, k:k+1] * X_hat[:, k, :], axis=0) / N_k[k]
-    
-    # Update covariances
-    Sigma = []
-    for k in range(K):
-        Sigma_k = np.zeros((p, p))
-        for n in range(N):
-            diff = X_hat[n, k] - mu[k]
-            Sigma_k += gamma[n, k] * (np.outer(diff, diff) + C[n][k])
-        Sigma_k /= N_k[k]
-        
-        # Ensure invertibility
-        if np.linalg.det(Sigma_k) < 1e-6:
-            Sigma_k += np.eye(p) * 1e-4
-        
-        Sigma.append(Sigma_k)
+            # Fallback: Random initialization if no labels for this class
+            mu[c] = global_mean + np.random.randn(n_features) * 0.1
+            Sigma.append(global_cov + np.eye(n_features) * 1e-6)
+            
+    # Normalize pi just in case
+    pi = pi / np.sum(pi)
     
     return pi, mu, Sigma
 
+def e_step_semi_supervised(X, y, pi, mu, Sigma):
+    """
+    E-Step: Estimate responsibilities (r).
+    
+    Per Section 2.1 of the PDF:
+    - For unlabeled examples: Calculate probability p(y=c | x, theta)[cite: 39].
+    - For labeled examples: The responsibility is fixed (1.0 for true class).
+    """
+    N, K = len(X), len(pi)
+    responsibilities = np.zeros((N, K))
+    
+    # 1. Calculate unnormalized posteriors for ALL points first
+    # This corresponds to p(y, x | theta) in the numerator of [cite: 39]
+    for k in range(K):
+        # We use a small reg to prevent numerical errors
+        try:
+            responsibilities[:, k] = pi[k] * multivariate_normal.pdf(X, mean=mu[k], cov=Sigma[k], allow_singular=True)
+        except np.linalg.LinAlgError:
+            # Fallback for singular matrices
+            responsibilities[:, k] = pi[k] * multivariate_normal.pdf(X, mean=mu[k], cov=Sigma[k] + np.eye(X.shape[1])*1e-5)
 
-def compute_log_likelihood(data_obs, pi, mu, Sigma):
-    """
-    Compute log-likelihood of observed data.
-    """
-    N = len(data_obs)
-    K = len(pi)
+    # Normalize to get probabilities (Softmax logic)
+    # This matches the denominator in [cite: 39]
+    row_sums = responsibilities.sum(axis=1)[:, np.newaxis]
+    # Avoid division by zero
+    row_sums[row_sums == 0] = 1e-10
+    responsibilities = responsibilities / row_sums
     
-    log_likelihood = 0.0
-    for n in range(N):
-        x_obs_n = data_obs[n]
-        likelihood = sum(pi[k] * gaussian_pdf(x_obs_n, mu[k], Sigma[k]) for k in range(K))
-        if likelihood > 0:
-            log_likelihood += np.log(likelihood)
-    
-    return log_likelihood
+    # 2. OVERRIDE with Known Labels (The Semi-Supervised constraint)
+    # For labeled data (not NaN), we do not guess; we enforce the truth.
+    for i in range(N):
+        if not np.isnan(y[i]):
+            # Create a one-hot vector for the true class
+            true_class = int(y[i])
+            responsibilities[i, :] = 0.0
+            responsibilities[i, true_class] = 1.0
+            
+    return responsibilities
 
+def m_step_semi_supervised(X, responsibilities):
+    """
+    M-Step: Update parameters maximize expected log-likelihood.
+    
+    Per Section 2.2 and 3.2:
+    - Update is a weighted version of the supervised problem[cite: 54].
+    - Weights are the responsibilities computed in E-step.
+    """
+    N, D = X.shape
+    K = responsibilities.shape[1]
+    
+    # 1. Effective number of points in each cluster (N_c)
+    # Sum of responsibilities for class c [cite: 58]
+    N_c = responsibilities.sum(axis=0)
+    
+    # 2. Update Priors (pi)
+    # count / total_samples [cite: 57]
+    pi_new = N_c / N
+    
+    mu_new = np.zeros((K, D))
+    Sigma_new = []
+    
+    for k in range(K):
+        # Avoid division by zero if a cluster dies out
+        total_weight = N_c[k] if N_c[k] > 1e-10 else 1.0
+        
+        # 3. Update Means (mu)
+        # Weighted sum of x / sum of weights [cite: 139]
+        # Note: For labeled data, weight is 1.0; for unlabeled, it is r_c.
+        mu_k = np.sum(responsibilities[:, k].reshape(-1, 1) * X, axis=0) / total_weight
+        mu_new[k] = mu_k
+        
+        # 4. Update Covariances (Sigma)
+        # Weighted sum of (x-mu)(x-mu)^T [cite: 143]
+        diff = X - mu_k
+        # Efficient weighted covariance calculation:
+        sigma_k = np.dot((responsibilities[:, k].reshape(-1, 1) * diff).T, diff) / total_weight
+        
+        # Regularization to ensure invertibility
+        sigma_k += np.eye(D) * 1e-5
+        Sigma_new.append(sigma_k)
+        
+    return pi_new, mu_new, Sigma_new
 
-def em_gmm(data_obs, n_components, max_iter=100, tol=1e-4, random_state=42):
+def compute_log_likelihood(X, pi, mu, Sigma):
     """
-    EM algorithm for Gaussian Mixture Model with missing data.
+    Compute the observed data log-likelihood to check convergence.
+    This corresponds to eqn (***) logic in Section 2.3, summing over marginals.
     """
-    N, p = data_obs.shape
+    N, K = len(X), len(pi)
+    likelihoods = np.zeros((N, K))
+    for k in range(K):
+        likelihoods[:, k] = pi[k] * multivariate_normal.pdf(X, mean=mu[k], cov=Sigma[k], allow_singular=True)
     
-    # Initialize parameters
-    pi, mu, Sigma = initialize_gmm_parameters(data_obs, n_components, random_state)
+    # Sum over components (marginalizing out z)
+    total_likelihood = np.sum(likelihoods, axis=1)
     
-    print(f"Initialization:")
-    print(f"  Mixing coefficients: {pi}")
-    print(f"  Number of components: {n_components}")
+    # Avoid log(0)
+    total_likelihood[total_likelihood < 1e-10] = 1e-10
+    return np.sum(np.log(total_likelihood))
+
+def em_semi_supervised(X, y, n_components, max_iter=100, tol=1e-4):
+    """
+    Main Loop for Semi-Supervised EM.
     
-    log_likelihood_old = compute_log_likelihood(data_obs, pi, mu, Sigma)
+    Parameters:
+    - X: Features (N x D)
+    - y: Labels (N,). Use NaN for unlabeled data.
+    """
+    print("--- Starting Semi-Supervised EM ---")
+    print(f"Total samples: {len(X)}")
+    print(f"Labeled samples: {np.sum(~np.isnan(y))}")
+    print(f"Unlabeled samples: {np.sum(np.isnan(y))}\n")
+    
+    # Initialization
+    pi, mu, Sigma = initialize_parameters(X, y, n_components)
+    
+    log_likelihood_old = -np.inf
     
     for iteration in range(max_iter):
-        # E-step
-        gamma, X_hat, C = e_step_gmm(data_obs, pi, mu, Sigma)
+        # E-STEP
+        responsibilities = e_step_semi_supervised(X, y, pi, mu, Sigma)
         
-        # M-step
-        pi, mu, Sigma = m_step_gmm(gamma, X_hat, C, N)
+        # M-STEP
+        pi, mu, Sigma = m_step_semi_supervised(X, responsibilities)
         
-        # Compute log-likelihood
-        log_likelihood = compute_log_likelihood(data_obs, pi, mu, Sigma)
+        # Check Convergence
+        log_likelihood = compute_log_likelihood(X, pi, mu, Sigma)
+        change = np.abs(log_likelihood - log_likelihood_old)
         
-        # Check convergence
-        ll_change = abs(log_likelihood - log_likelihood_old)
-        
-        if (iteration + 1) % 10 == 0:
-            print(f"Iteration {iteration + 1}: Log-likelihood = {log_likelihood:.4f}, Change = {ll_change:.6f}")
-        
-        if ll_change < tol:
-            print(f"Converged after {iteration + 1} iterations.")
+        if (iteration + 1) % 10 == 0 or iteration == 0:
+            print(f"Iteration {iteration+1}: Log-Likelihood = {log_likelihood:.4f}")
+            
+        if change < tol:
+            print(f"Converged at iteration {iteration+1}")
+            num_iterations = iteration + 1
+            return pi, mu, Sigma, num_iterations
             break
-        
+            
         log_likelihood_old = log_likelihood
-    
-    return pi, mu, Sigma, gamma, iteration + 1
+    num_iterations = max_iter
+    return pi, mu, Sigma, num_iterations
 
-
+# --- Example Usage ---
 if __name__ == "__main__":
-    print("### EM Algorithm for GMM with Missing Data ###\n")
+    # 1. Generate Synthetic Data
+    np.random.seed(0)
+    # Cluster 0
+    X0 = np.random.randn(50, 2) + np.array([0, 0])
+    # Cluster 1
+    X1 = np.random.randn(50, 2) + np.array([5, 5])
+    # Cluster 2
+    X2 = np.random.randn(50, 2) + np.array([0, 5])
     
-    # True parameters (3-component GMM)
-    n_components_true = 3
-    pi_true = [0.3, 0.4, 0.3]
-    mu_true = [
-        np.array([0, 0]),
-        np.array([5, 5]),
-        np.array([0, 5])
-    ]
-    Sigma_true = [
-        np.array([[1.0, 0.3], [0.3, 1.0]]),
-        np.array([[1.5, -0.5], [-0.5, 1.5]]),
-        np.array([[1.0, 0.0], [0.0, 1.0]])
-    ]
+    X = np.vstack([X0, X1, X2])
+    # True labels
+    y_true = np.array([0]*50 + [1]*50 + [2]*50)
     
-    # Load data with missing values
-    data_obs = pd.read_csv("synthetic_gmm/MAR_missing_30pct.csv").values
+    # 2. Create Semi-Supervised Scenario (Mask 80% of labels)
+    y_semi = y_true.copy()
+    mask = np.random.rand(len(y_semi)) < 1  # 80% missing
+    y_semi[mask] = -1  # -1 denotes unlabeled
     
-    print(f"Observed data dimensions: {data_obs.shape}")
-    print(f"Missing values percentage: {np.sum(np.isnan(data_obs)) / data_obs.size * 100:.2f}%\n")
+    # 3. Run Algorithm
+    pi_est, mu_est, Sigma_est = em_semi_supervised(X, y_semi, n_components=3)
     
-    print("--- True Parameters ---")
-    print(f"Mixing coefficients: {pi_true}")
-    for k in range(n_components_true):
-        print(f"Component {k}: mu = {mu_true[k]}, Sigma =\n{Sigma_true[k]}")
     
-    # Run EM algorithm
-    print("\n--- Running EM Algorithm ---")
-    pi_est, mu_est, Sigma_est, gamma_est, num_iter = em_gmm(
-        data_obs, 
-        n_components=n_components_true,
-        max_iter=200, 
-        tol=1e-5,
-        random_state=42
-    )
+    print("\n--- Final Results ---")
+    print(f"Estimated Means:\n{mu_est}")
     
-    print("\n--- Estimated Parameters ---")
-    print(f"Mixing coefficients: {pi_est}")
-    for k in range(n_components_true):
-        print(f"Component {k}:")
-        print(f"  mu = {mu_est[k]}")
-        print(f"  Sigma =\n{Sigma_est[k]}")
+    # Simple accuracy check on the UNLABELED portion
+    unlabeled_idx = (y_semi == -1)
+    print(f"Accuracy on unlabeled data: {acc*100:.2f}%")
