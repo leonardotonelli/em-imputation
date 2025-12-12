@@ -501,7 +501,7 @@ if __name__ == "__main__":
         fig_time.savefig(f'tests\\time_comparison_{mechanism}_gmm.png', dpi=300, bbox_inches='tight')
         plt.close()
 
-        # DA CORREGGERE
+        # DA CORREGGERE!!
         # fig_sample_time = plot_sample_size_time(df, mechanism=mechanism)
         # fig_sample_time.savefig(f'sample_time_comparison_{mechanism}_gmm.png', dpi=300, bbox_inches='tight')
         # plt.close()
