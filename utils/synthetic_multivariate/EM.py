@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
 # Support function
 
@@ -109,16 +110,43 @@ def m_step(X_hat_n, C_n, N):
 
 
 # EM for multivariate Gaussian 
-def em_multivariate_gaussian(data_obs, max_iter=100, tol=1e-4):
+def em_multivariate_gaussian(data_obs, max_iter=100, tol=1e-4, save_plot_path=None):
     """
     Complete EM algorithm for estimating mu and Sigma of a multivariate Gaussian
     with missing data.
+    
+    Parameters:
+    -----------
+    data_obs : list of arrays
+        Observed data with missing values
+    max_iter : int
+        Maximum number of iterations
+    tol : float
+        Convergence tolerance
+    save_plot_path : str, optional
+        Path to save the convergence plot (e.g., 'convergence.png')
+        If None, plot is not saved
+    
+    Returns:
+    --------
+    mu_hat : array
+        Estimated mean vector
+    Sigma_hat : array
+        Estimated covariance matrix
+    n_iter : int
+        Number of iterations performed
+    errors : dict
+        Dictionary with 'mu_errors' and 'sigma_errors' lists
     """
     N = len(data_obs)
     
     mu_hat, Sigma_hat = initialize_parameters(data_obs)
     
     print(f"Initialization mu: {mu_hat}")
+    
+    # Track errors
+    mu_errors = []
+    sigma_errors = []
     
     for i in range(max_iter):
         mu_old, Sigma_old = mu_hat.copy(), Sigma_hat.copy()
@@ -133,12 +161,48 @@ def em_multivariate_gaussian(data_obs, max_iter=100, tol=1e-4):
         mu_diff = np.linalg.norm(mu_hat - mu_old)
         Sigma_diff = np.linalg.norm(Sigma_hat - Sigma_old) / len(Sigma_hat)**2
         
+        # Save errors
+        mu_errors.append(mu_diff)
+        sigma_errors.append(Sigma_diff)
+        
         if mu_diff < tol and Sigma_diff < tol:
             print(f"Converged after {i+1} iterations.")
             break
             
         if (i + 1) % 10 == 0:
             print(f"Iteration {i+1}: Delta Mu = {mu_diff:.5f}, Delta Sigma = {Sigma_diff:.5f}")
+    
+    # Plot convergence if path provided
+    if save_plot_path is not None:
+        import matplotlib.pyplot as plt
+        
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+        
+        # Plot mu convergence
+        ax1.plot(range(1, len(mu_errors) + 1), mu_errors, 'b-', linewidth=2)
+        ax1.set_xlabel('Iteration', fontsize=12)
+        ax1.set_ylabel('||μ - μ_old||', fontsize=12)
+        ax1.set_title('Mean Vector Convergence', fontsize=14)
+        ax1.grid(True, alpha=0.3)
+        ax1.set_yscale('log')
+        
+        # Plot Sigma convergence
+        ax2.plot(range(1, len(sigma_errors) + 1), sigma_errors, 'r-', linewidth=2)
+        ax2.set_xlabel('Iteration', fontsize=12)
+        ax2.set_ylabel('||Σ - Σ_old|| / d²', fontsize=12)
+        ax2.set_title('Covariance Matrix Convergence', fontsize=14)
+        ax2.grid(True, alpha=0.3)
+        ax2.set_yscale('log')
+        
+        plt.tight_layout()
+        plt.savefig(save_plot_path, dpi=300, bbox_inches='tight')
+        print(f"Convergence plot saved to: {save_plot_path}")
+        plt.close()
+    
+    errors = {
+        'mu_errors': mu_errors,
+        'sigma_errors': sigma_errors
+    }
 
     return mu_hat, Sigma_hat, i+1
 
@@ -148,7 +212,7 @@ if __name__ == "__main__":
     # Practical example
     print("### EM Algorithm Example for Missing Data ###")
 
-    # Real parameters
+    # Real parameters to insert
     mu_real = [50, 100, 25, 75]
     Sigma_real = np.array([
             [10,  5,  2,  3],
@@ -156,8 +220,11 @@ if __name__ == "__main__":
             [ 2,  4, 15,  1],
             [ 3,  6,  1, 12]
         ])
+    name = "MNAR_missing_10pct"
+    save_plot = False # if we want to save the convergence plot
 
-    data_obs = np.array(pd.read_csv("tests\\MAR_missing_30pct.csv", skiprows=0))
+
+    data_obs = np.array(pd.read_csv(f"tests\\{name}.csv", skiprows=0))
 
     print(f"\nObserved data dimensions: {data_obs.shape}")
     print(f"Missing values percentage: {np.sum(np.isnan(data_obs)) / data_obs.size * 100:.2f}%")
@@ -166,8 +233,15 @@ if __name__ == "__main__":
     print(f"Real Mu: \n{mu_real}")
     print(f"Real Sigma: \n{Sigma_real}")
 
+    if save_plot:
+        plot_out = Path(__file__).parent.parent.parent / "plots" / "synthetic_multivariate" / "convergence_checks"
+        plot_out.mkdir(parents=True, exist_ok=True)
+        plot_out = plot_out / f"{name}.png"
+    else:
+        plot_out = None
+
     # Run EM algorithm
-    mu_estimated, Sigma_estimated, num_iterations = em_multivariate_gaussian(data_obs, max_iter=200, tol=1e-5)
+    mu_estimated, Sigma_estimated, num_iterations = em_multivariate_gaussian(data_obs, max_iter=200, tol=1e-5, save_plot_path=plot_out)
 
     # Compare results
     print("\n--- EM Estimation Results ---")

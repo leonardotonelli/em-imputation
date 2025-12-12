@@ -70,9 +70,9 @@ def e_step_semi_supervised(X, y, pi, mu, Sigma):
     responsibilities = responsibilities / row_sums
     
     # 2. OVERRIDE with Known Labels (The Semi-Supervised constraint)
-    # For labeled data (y != -1), we do not guess; we enforce the truth.
+    # For labeled data (not NaN), we do not guess; we enforce the truth.
     for i in range(N):
-        if y[i] != -1:
+        if not np.isnan(y[i]):
             # Create a one-hot vector for the true class
             true_class = int(y[i])
             responsibilities[i, :] = 0.0
@@ -147,12 +147,12 @@ def em_semi_supervised(X, y, n_components, max_iter=100, tol=1e-4):
     
     Parameters:
     - X: Features (N x D)
-    - y: Labels (N,). Use -1 for unlabeled data.
+    - y: Labels (N,). Use NaN for unlabeled data.
     """
     print("--- Starting Semi-Supervised EM ---")
     print(f"Total samples: {len(X)}")
-    print(f"Labeled samples: {np.sum(y != -1)}")
-    print(f"Unlabeled samples: {np.sum(y == -1)}\n")
+    print(f"Labeled samples: {np.sum(~np.isnan(y))}")
+    print(f"Unlabeled samples: {np.sum(np.isnan(y))}\n")
     
     # Initialization
     pi, mu, Sigma = initialize_parameters(X, y, n_components)
@@ -175,11 +175,13 @@ def em_semi_supervised(X, y, n_components, max_iter=100, tol=1e-4):
             
         if change < tol:
             print(f"Converged at iteration {iteration+1}")
+            num_iterations = iteration + 1
+            return pi, mu, Sigma, num_iterations
             break
             
         log_likelihood_old = log_likelihood
-        
-    return pi, mu, Sigma, responsibilities
+    num_iterations = max_iter
+    return pi, mu, Sigma, num_iterations
 
 # --- Example Usage ---
 if __name__ == "__main__":
@@ -202,15 +204,12 @@ if __name__ == "__main__":
     y_semi[mask] = -1  # -1 denotes unlabeled
     
     # 3. Run Algorithm
-    pi_est, mu_est, Sigma_est, final_resp = em_semi_supervised(X, y_semi, n_components=3)
+    pi_est, mu_est, Sigma_est = em_semi_supervised(X, y_semi, n_components=3)
     
-    # 4. Predict final labels (argmax of responsibilities)
-    y_pred = np.argmax(final_resp, axis=1)
     
     print("\n--- Final Results ---")
     print(f"Estimated Means:\n{mu_est}")
     
     # Simple accuracy check on the UNLABELED portion
     unlabeled_idx = (y_semi == -1)
-    acc = np.mean(y_pred[unlabeled_idx] == y_true[unlabeled_idx])
     print(f"Accuracy on unlabeled data: {acc*100:.2f}%")
