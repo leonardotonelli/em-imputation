@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os
 
 # Set style for academic plots
 sns.set_style("whitegrid")
@@ -501,38 +502,51 @@ def plot_sample_size_time(df, mechanism='MCAR', figsize=(10, 6)):
     plt.tight_layout()
     return fig
 
-# Main execution
-if __name__ == "__main__":
-    # Load data
-    df = pd.read_csv("tests\\simulation_results.csv")    
-    # Generate all visualizations
+def create_full_report(df, output_folder='tests'):
+    """
+    Generate a complete set of visualization reports for missing data imputation analysis.
     
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        DataFrame containing the results with columns for mechanism, method, 
+        missing_rate, mean_error, computation_time, etc.
+    
+    Returns:
+    --------
+    None
+        Saves all visualization files to the 'tests' directory
+    """
+    os.makedirs(output_folder, exist_ok=True)
+    for mechanism in ['MCAR', 'MAR', 'MNAR']:
+        os.makedirs(os.path.join(output_folder, mechanism), exist_ok=True)
+
     # Individual mechanism plots for mean error
     for mechanism in ['MCAR', 'MAR', 'MNAR']:
         fig_error = plot_error_comparison(df, mechanism=mechanism)
-        fig_error.savefig(f'tests\\error_comparison_{mechanism}.png', dpi=300, bbox_inches='tight')
+        fig_error.savefig(f'{output_folder}\\{mechanism}\\error_comparison_{mechanism}.png', dpi=300, bbox_inches='tight')
         plt.close()
         
         fig_time = plot_time_comparison(df, mechanism=mechanism)
-        fig_time.savefig(f'tests\\time_comparison_{mechanism}.png', dpi=300, bbox_inches='tight')
+        fig_time.savefig(f'{output_folder}\\{mechanism}\\time_comparison_{mechanism}.png', dpi=300, bbox_inches='tight')
         plt.close()
         
         fig_sigma = plot_sigma_error_comparison(df, mechanism=mechanism)
-        fig_sigma.savefig(f'tests\\sigma_error_{mechanism}.png', dpi=300, bbox_inches='tight')
+        fig_sigma.savefig(f'{output_folder}\\{mechanism}\\sigma_error_{mechanism}.png', dpi=300, bbox_inches='tight')
         plt.close()
 
         # Sample size plots
         fig_sample_error = plot_sample_size_error(df, mechanism=mechanism)
-        fig_sample_error.savefig(f'tests\\sample_size_error_{mechanism}_gmm.png', dpi=300, bbox_inches='tight')
+        fig_sample_error.savefig(f'{output_folder}\\{mechanism}\\sample_size_error_{mechanism}_gmm.png', dpi=300, bbox_inches='tight')
         plt.close()
         
         fig_sample_time = plot_sample_size_time(df, mechanism=mechanism)
-        fig_sample_time.savefig(f'tests\\sample_size_time_{mechanism}_gmm.png', dpi=300, bbox_inches='tight')
+        fig_sample_time.savefig(f'{output_folder}\\{mechanism}\\sample_size_time_{mechanism}_gmm.png', dpi=300, bbox_inches='tight')
         plt.close()
     
     # Heatmap
     fig_heatmap = plot_error_heatmap(df)
-    fig_heatmap.savefig('tests\\error_heatmap_all.png', dpi=300, bbox_inches='tight')
+    fig_heatmap.savefig(f'{output_folder}\\error_heatmap_all.png', dpi=300, bbox_inches='tight')
     plt.close()
     
     print("All visualizations generated successfully!")
@@ -540,5 +554,15 @@ if __name__ == "__main__":
     print("- error_comparison_[MCAR/MAR/MNAR].png")
     print("- time_comparison_[MCAR/MAR/MNAR].png")
     print("- sigma_error_[MCAR/MAR/MNAR].png")
+    print("- sample_size_error_[MCAR/MAR/MNAR]_gmm.png")
+    print("- sample_size_time_[MCAR/MAR/MNAR]_gmm.png")
     print("- error_heatmap_all.png")
-    print("- combined_comparison.png")
+
+
+# Main execution
+if __name__ == "__main__":
+    # Load data
+    df = pd.read_csv("tests\\simulation_results.csv")    
+    # Generate all visualizations
+    
+    create_full_report(df, output_folder='tests')

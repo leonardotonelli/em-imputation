@@ -110,7 +110,7 @@ def m_step(X_hat_n, C_n, N):
 
 
 # EM for multivariate Gaussian 
-def em_multivariate_gaussian(data_obs, max_iter=100, tol=1e-4, save_plot_path=None):
+def em_multivariate_gaussian(data_obs, max_iter=100, tol=1e-4, save_plot_path=None, verbose=False):
     """
     Complete EM algorithm for estimating mu and Sigma of a multivariate Gaussian
     with missing data.
@@ -142,7 +142,8 @@ def em_multivariate_gaussian(data_obs, max_iter=100, tol=1e-4, save_plot_path=No
     
     mu_hat, Sigma_hat = initialize_parameters(data_obs)
     
-    print(f"Initialization mu: {mu_hat}")
+    if verbose:
+        print(f"Initialization mu: {mu_hat}")
     
     # Track errors
     mu_errors = []
@@ -164,13 +165,15 @@ def em_multivariate_gaussian(data_obs, max_iter=100, tol=1e-4, save_plot_path=No
         # Save errors
         mu_errors.append(mu_diff)
         sigma_errors.append(Sigma_diff)
-        
+            
         if mu_diff < tol and Sigma_diff < tol:
-            print(f"Converged after {i+1} iterations.")
+            if verbose:
+                print(f"Converged after {i+1} iterations.")
             break
             
         if (i + 1) % 10 == 0:
-            print(f"Iteration {i+1}: Delta Mu = {mu_diff:.5f}, Delta Sigma = {Sigma_diff:.5f}")
+            if verbose:
+                print(f"Iteration {i+1}: Delta Mu = {mu_diff:.5f}, Delta Sigma = {Sigma_diff:.5f}")
     
     # Plot convergence if path provided
     if save_plot_path is not None:
@@ -196,7 +199,8 @@ def em_multivariate_gaussian(data_obs, max_iter=100, tol=1e-4, save_plot_path=No
         
         plt.tight_layout()
         plt.savefig(save_plot_path, dpi=300, bbox_inches='tight')
-        print(f"Convergence plot saved to: {save_plot_path}")
+        if verbose:
+            print(f"Convergence plot saved to: {save_plot_path}")
         plt.close()
     
     errors = {
@@ -210,6 +214,7 @@ def em_multivariate_gaussian(data_obs, max_iter=100, tol=1e-4, save_plot_path=No
 if __name__ == "__main__":
     
     # Practical example
+    
     print("### EM Algorithm Example for Missing Data ###")
 
     # Real parameters to insert

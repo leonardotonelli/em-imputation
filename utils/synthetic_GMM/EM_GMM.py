@@ -141,7 +141,7 @@ def compute_log_likelihood(X, pi, mu, Sigma):
     total_likelihood[total_likelihood < 1e-10] = 1e-10
     return np.sum(np.log(total_likelihood))
 
-def em_semi_supervised(X, y, n_components, max_iter=100, tol=1e-4):
+def em_semi_supervised(X, y, n_components, max_iter=100, tol=1e-4, verbose=False):
     """
     Main Loop for Semi-Supervised EM.
     
@@ -149,10 +149,11 @@ def em_semi_supervised(X, y, n_components, max_iter=100, tol=1e-4):
     - X: Features (N x D)
     - y: Labels (N,). Use NaN for unlabeled data.
     """
-    print("--- Starting Semi-Supervised EM ---")
-    print(f"Total samples: {len(X)}")
-    print(f"Labeled samples: {np.sum(~np.isnan(y))}")
-    print(f"Unlabeled samples: {np.sum(np.isnan(y))}\n")
+    if verbose:
+        print("--- Starting Semi-Supervised EM ---")
+        print(f"Total samples: {len(X)}")
+        print(f"Labeled samples: {np.sum(~np.isnan(y))}")
+        print(f"Unlabeled samples: {np.sum(np.isnan(y))}\n")
     
     # Initialization
     pi, mu, Sigma = initialize_parameters(X, y, n_components)
@@ -170,11 +171,13 @@ def em_semi_supervised(X, y, n_components, max_iter=100, tol=1e-4):
         log_likelihood = compute_log_likelihood(X, pi, mu, Sigma)
         change = np.abs(log_likelihood - log_likelihood_old)
         
-        if (iteration + 1) % 10 == 0 or iteration == 0:
-            print(f"Iteration {iteration+1}: Log-Likelihood = {log_likelihood:.4f}")
-            
+        if verbose:
+            if (iteration + 1) % 10 == 0 or iteration == 0:
+                print(f"Iteration {iteration+1}: Log-Likelihood = {log_likelihood:.4f}")
+                
         if change < tol:
-            print(f"Converged at iteration {iteration+1}")
+            if verbose:
+                print(f"Converged at iteration {iteration+1}")
             num_iterations = iteration + 1
             return pi, mu, Sigma, num_iterations
             break

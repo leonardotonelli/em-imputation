@@ -487,45 +487,66 @@ def plot_sample_size_time(df, mechanism='MCAR', figsize=(10, 6)):
     plt.tight_layout()
     return fig
 
+def create_full_report_gmm(df, output_folder='tests'):
+    """
+    Generate a complete set of visualization reports for GMM missing data imputation analysis.
+    
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        DataFrame containing the results with columns for mechanism, method, 
+        missing_rate, proportion_error, computation_time, etc.
+    output_folder : str, optional
+        Base directory for saving visualizations (default: 'tests')
+    
+    Returns:
+    --------
+    None
+        Saves all visualization files to the specified directory structure
+    """
+    import os
+    
+    # Create output folders if they don't exist
+    os.makedirs(output_folder, exist_ok=True)
+    for mechanism in ['MCAR', 'MAR', 'MNAR']:
+        os.makedirs(os.path.join(output_folder, mechanism), exist_ok=True)
+    
+    # Individual mechanism plots for proportion error
+    for mechanism in ['MCAR', 'MAR', 'MNAR']:
+        fig_error = plot_error_comparison(df, mechanism=mechanism)
+        fig_error.savefig(f'{output_folder}\\{mechanism}\\error_comparison_{mechanism}_gmm.png', dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        fig_time = plot_time_comparison(df, mechanism=mechanism)
+        fig_time.savefig(f'{output_folder}\\{mechanism}\\time_comparison_{mechanism}_gmm.png', dpi=300, bbox_inches='tight')
+        plt.close()
 
+        fig_sample_time = plot_sample_size_time(df, mechanism=mechanism)
+        fig_sample_time.savefig(f'{output_folder}\\{mechanism}\\sample_time_comparison_{mechanism}_gmm.png', dpi=300, bbox_inches='tight')
+        plt.close()
+
+        fig_sample_error = plot_sample_size_error(df, mechanism=mechanism)
+        fig_sample_error.savefig(f'{output_folder}\\{mechanism}\\sample_error_comparison_{mechanism}_gmm.png', dpi=300, bbox_inches='tight')
+        plt.close()
+    
+    # Heatmap
+    fig_heatmap = plot_error_heatmap(df)
+    fig_heatmap.savefig(f'{output_folder}\\error_heatmap_all_gmm.png', dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    print("All visualizations generated successfully!")
+    print(f"\nGenerated files in '{output_folder}':")
+    print("- [MCAR/MAR/MNAR]/error_comparison_[mechanism]_gmm.png")
+    print("- [MCAR/MAR/MNAR]/time_comparison_[mechanism]_gmm.png")
+    print("- [MCAR/MAR/MNAR]/sample_time_comparison_[mechanism]_gmm.png")
+    print("- [MCAR/MAR/MNAR]/sample_error_comparison_[mechanism]_gmm.png")
+    print("- error_heatmap_all_gmm.png")
 
 # Main execution
 if __name__ == "__main__":
     # Load data
     df = pd.read_csv("tests\\simulation_results_gmm.csv")
     
-    # Generate all visualizations
-    
-    # Individual mechanism plots for proportion error
-    for mechanism in ['MCAR', 'MAR', 'MNAR']:
-        fig_error = plot_error_comparison(df, mechanism=mechanism)
-        fig_error.savefig(f'tests\\error_comparison_{mechanism}_gmm.png', dpi=300, bbox_inches='tight')
-        plt.close()
-        
-        fig_time = plot_time_comparison(df, mechanism=mechanism)
-        fig_time.savefig(f'tests\\time_comparison_{mechanism}_gmm.png', dpi=300, bbox_inches='tight')
-        plt.close()
-
-        # DA CORREGGERE!!
-        fig_sample_time = plot_sample_size_time(df, mechanism=mechanism)
-        fig_sample_time.savefig(f'tests\\sample_time_comparison_{mechanism}_gmm.png', dpi=300, bbox_inches='tight')
-        plt.close()
-
-        fig_sample_error = plot_sample_size_error(df, mechanism=mechanism)
-        fig_sample_error.savefig(f'tests\\sample_error_comparison_{mechanism}_gmm.png', dpi=300, bbox_inches='tight')
-        plt.close()
-    
-    # Heatmap
-    fig_heatmap = plot_error_heatmap(df)
-    fig_heatmap.savefig('tests\\error_heatmap_all_gmm.png', dpi=300, bbox_inches='tight')
-    plt.close()
-    
-    
-    print("All visualizations generated successfully!")
-    print("\nGenerated files:")
-    print("- error_comparison_[MCAR/MAR/MNAR]_gmm.png")
-    print("- time_comparison_[MCAR/MAR/MNAR]_gmm.png")
-    print("- error_heatmap_all_gmm.png")
-    print("- combined_comparison_gmm.png")
+    create_full_report_gmm(df, output_folder='tests')
 
 
