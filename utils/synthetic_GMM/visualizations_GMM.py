@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 # Set style for academic plots
 sns.set_style("whitegrid")
@@ -34,7 +36,7 @@ def plot_error_heatmap(df, figsize=(12, 4)):
         )
         
         # Reorder methods
-        method_order = ['EM', 'MICE', 'KNN', 'Mode']
+        method_order = ['EM', 'RF', 'KNN', 'Mode']
         pivot_data = pivot_data.reindex(method_order)
         
         sns.heatmap(
@@ -71,7 +73,7 @@ def prepare_error_data(df):
     """Prepare error data in long format for seaborn."""
     error_cols = {
         'pi_error': 'EM',
-        'mice_imputation_prop_error': 'MICE',
+        'rf_imputation_prop_error': 'RF',
         'knn_imputation_prop_error': 'KNN',
         'mode_imputation_prop_error': 'Mode'
     }
@@ -111,7 +113,7 @@ def prepare_time_data(df):
     """Prepare time data in long format for seaborn."""
     time_cols = {
         'convergence_time': 'EM',
-        'mice_imputation_time': 'MICE',
+        'rf_imputation_time': 'RF',
         'knn_imputation_time': 'KNN',
         'mode_imputation_time': 'Mode'
     }
@@ -152,7 +154,7 @@ def plot_error_comparison(df, mechanism='MCAR', figsize=(10, 6)):
     # Define color palette
     palette = {
         'EM': '#e74c3c',
-        'MICE': '#3498db',
+        'RF': '#3498db',
         'KNN': '#2ecc71',
         'Mode': '#f39c12'
     }
@@ -160,7 +162,7 @@ def plot_error_comparison(df, mechanism='MCAR', figsize=(10, 6)):
     # Define line styles
     dashes = {
         'EM': '',
-        'MICE': '',
+        'RF': '',
         'KNN': '',
         'Mode': ''
     }
@@ -214,7 +216,7 @@ def plot_time_comparison(df, mechanism='MCAR', figsize=(10, 6)):
     # Define color palette
     palette = {
         'EM': '#e74c3c',
-        'MICE': '#3498db',
+        'RF': '#3498db',
         'KNN': '#2ecc71',
         'Mode': '#f39c12'
     }
@@ -222,7 +224,7 @@ def plot_time_comparison(df, mechanism='MCAR', figsize=(10, 6)):
     # Define line styles
     dashes = {
         'EM': '',
-        'MICE': '',
+        'RF': '',
         'KNN': '',
         'Mode': ''
     }
@@ -254,6 +256,73 @@ def plot_time_comparison(df, mechanism='MCAR', figsize=(10, 6)):
     return fig
 
 
+def load_data(filepath='simulation_results_gmm.txt'):
+    """Load and prepare simulation data."""
+    df = pd.read_csv(filepath, sep='\t')
+    return df
+
+def prepare_error_data(df):
+    """Prepare error data in long format for seaborn."""
+    error_cols = {
+        'pi_error': 'EM',
+        'rf_imputation_prop_error': 'RF',
+        'knn_imputation_prop_error': 'KNN',
+        'mode_imputation_prop_error': 'Mode'
+    }
+    
+    df_long = df.melt(
+        id_vars=['mechanism', 'missingness_pct'],
+        value_vars=list(error_cols.keys()),
+        var_name='method',
+        value_name='error'
+    )
+    
+    df_long['method'] = df_long['method'].map(error_cols)
+    df_long['missingness_pct'] = df_long['missingness_pct'] * 100
+    
+    return df_long
+
+def apply_ordered_dodge(data, x_col, hue_col, dodge_width=0.8):
+    """
+    Apply dodge so that for each x value, the hue groups are ordered left→right.
+    """
+    data = data.copy()
+    data[x_col + "_dodged"] = data[x_col]
+
+    # For each x value, compute dodge offsets by sorted order of hue
+    for x_val, group in data.groupby(x_col):
+        methods = sorted(group[hue_col].unique())  # alphabetical = consistent order
+        n = len(methods)
+        offsets = {m: (i - (n - 1) / 2) * dodge_width for i, m in enumerate(methods)}
+
+        idx = data[x_col] == x_val
+        data.loc[idx, x_col + "_dodged"] += data.loc[idx, hue_col].map(offsets)
+
+    return data, x_col + "_dodged"
+
+
+def prepare_time_data(df):
+    """Prepare time data in long format for seaborn."""
+    time_cols = {
+        'convergence_time': 'EM',
+        'rf_imputation_time': 'RF',
+        'knn_imputation_time': 'KNN',
+        'mode_imputation_time': 'Mode'
+    }
+    
+    df_long = df.melt(
+        id_vars=['mechanism', 'missingness_pct'],
+        value_vars=list(time_cols.keys()),
+        var_name='method',
+        value_name='time'
+    )
+    
+    df_long['method'] = df_long['method'].map(time_cols)
+    df_long['missingness_pct'] = df_long['missingness_pct'] * 100
+    
+    return df_long
+
+
 def plot_sample_size_error(df, mechanism='MCAR', figsize=(10, 6)):
     """
     Plot proportion error vs sample size comparison.
@@ -267,13 +336,25 @@ def plot_sample_size_error(df, mechanism='MCAR', figsize=(10, 6)):
     figsize : tuple
         Figure size
     """
-    df_error = prepare_error_data(df)
-    data = df_error[df_error['mechanism'] == mechanism].copy()
+    # Prepare error data
+    error_cols = {
+        'pi_error': 'EM',
+        'rf_imputation_prop_error': 'RF',
+        'knn_imputation_prop_error': 'KNN',
+        'mode_imputation_prop_error': 'Mode'
+    }
     
-    # Merge n_samples into the data
-    data = data.merge(df[['mechanism', 'missingness_pct', 'n_samples']], 
-                      on=['mechanism', 'missingness_pct'], how='left')
-    data = data.drop_duplicates()
+    df_long = df.melt(
+        id_vars=['mechanism', 'missingness_pct', 'n_samples'],
+        value_vars=list(error_cols.keys()),
+        var_name='method',
+        value_name='error'
+    )
+    
+    df_long['method'] = df_long['method'].map(error_cols)
+    
+    # Filter by mechanism
+    data = df_long[df_long['mechanism'] == mechanism].copy()
     
     # Apply dodge
     data_dodged, x_dodged = apply_ordered_dodge(data, 'n_samples', 'method', dodge_width=15)
@@ -282,14 +363,14 @@ def plot_sample_size_error(df, mechanism='MCAR', figsize=(10, 6)):
     
     palette = {
         'EM': '#e74c3c',
-        'MICE': '#3498db',
+        'RF': '#3498db',
         'KNN': '#2ecc71',
         'Mode': '#f39c12'
     }
     
     dashes = {
         'EM': '',
-        'MICE': '',
+        'RF': '',
         'KNN': '',
         'Mode': ''
     }
@@ -304,7 +385,7 @@ def plot_sample_size_error(df, mechanism='MCAR', figsize=(10, 6)):
         dashes=dashes,
         palette=palette,
         err_style='bars',
-        errorbar=('se'),
+        errorbar='se',
         ax=ax,
         linewidth=2,
         markersize=8,
@@ -316,6 +397,7 @@ def plot_sample_size_error(df, mechanism='MCAR', figsize=(10, 6)):
     ax.set_title(f'Proportion Error vs Sample Size\nMechanism: {mechanism}',
                  fontsize=14, fontweight='bold')
     ax.legend(title='Method', loc='best', frameon=True)
+    ax.grid(True, alpha=0.3)
     
     plt.tight_layout()
     return fig
@@ -334,13 +416,25 @@ def plot_sample_size_time(df, mechanism='MCAR', figsize=(10, 6)):
     figsize : tuple
         Figure size
     """
-    df_time = prepare_time_data(df)
-    data = df_time[df_time['mechanism'] == mechanism].copy()
+    # Prepare time data
+    time_cols = {
+        'convergence_time': 'EM',
+        'rf_imputation_time': 'RF',
+        'knn_imputation_time': 'KNN',
+        'mode_imputation_time': 'Mode'
+    }
     
-    # Merge n_samples into the data
-    data = data.merge(df[['mechanism', 'missingness_pct', 'n_samples']], 
-                      on=['mechanism', 'missingness_pct'], how='left')
-    data = data.drop_duplicates()
+    df_long = df.melt(
+        id_vars=['mechanism', 'missingness_pct', 'n_samples'],
+        value_vars=list(time_cols.keys()),
+        var_name='method',
+        value_name='time'
+    )
+    
+    df_long['method'] = df_long['method'].map(time_cols)
+    
+    # Filter by mechanism
+    data = df_long[df_long['mechanism'] == mechanism].copy()
     
     # Apply dodge
     data_dodged, x_dodged = apply_ordered_dodge(data, 'n_samples', 'method', dodge_width=15)
@@ -349,14 +443,14 @@ def plot_sample_size_time(df, mechanism='MCAR', figsize=(10, 6)):
     
     palette = {
         'EM': '#e74c3c',
-        'MICE': '#3498db',
+        'RF': '#3498db',
         'KNN': '#2ecc71',
         'Mode': '#f39c12'
     }
     
     dashes = {
         'EM': '',
-        'MICE': '',
+        'RF': '',
         'KNN': '',
         'Mode': ''
     }
@@ -371,7 +465,7 @@ def plot_sample_size_time(df, mechanism='MCAR', figsize=(10, 6)):
         dashes=dashes,
         palette=palette,
         err_style='bars',
-        errorbar=('se'),
+        errorbar='se',
         ax=ax,
         linewidth=2,
         markersize=8,
@@ -383,102 +477,13 @@ def plot_sample_size_time(df, mechanism='MCAR', figsize=(10, 6)):
     ax.set_title(f'Computation Time vs Sample Size\nMechanism: {mechanism}',
                  fontsize=14, fontweight='bold')
     ax.legend(title='Method', loc='best', frameon=True)
+    ax.grid(True, alpha=0.3)
     
-    plt.tight_layout()
-    return fig
-
-
-def plot_combined_comparison(df, figsize=(15, 10)):
-    """
-    Create a combined plot showing error and time across all mechanisms.
+    # Use log scale for y-axis if range is large
+    time_range = data['time'].max() / (data['time'].min() + 1e-10)
+    if time_range > 100:
+        ax.set_yscale('log')
     
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Simulation results
-    figsize : tuple
-        Figure size
-    """
-    fig, axes = plt.subplots(2, 3, figsize=figsize)
-    
-    palette = {
-        'EM': '#e74c3c',
-        'MICE': '#3498db',
-        'KNN': '#2ecc71',
-        'Mode': '#f39c12'
-    }
-    
-    dashes = {
-        'EM': '',
-        'MICE': '',
-        'KNN': '',
-        'Mode': ''
-    }
-    
-    # Prepare data
-    df_error = prepare_error_data(df)
-    df_time = prepare_time_data(df)
-    
-    mechanisms = ['MCAR', 'MAR', 'MNAR']
-    
-    # Plot errors (top row)
-    for idx, mechanism in enumerate(mechanisms):
-        data = df_error[df_error['mechanism'] == mechanism]
-        data_dodged, x_dodged = apply_ordered_dodge(data, 'missingness_pct', 'method', dodge_width=0.3)
-        
-        sns.lineplot(
-            data=data_dodged,
-            x=x_dodged,
-            y='error',
-            hue='method',
-            style='method',
-            markers=True,
-            dashes=dashes,
-            palette=palette,
-            err_style='bars',
-            errorbar=('se'),
-            ax=axes[0, idx],
-            linewidth=2,
-            markersize=8,
-            err_kws={"capsize": 3},
-            legend=(idx == 2)
-        )
-        
-        axes[0, idx].set_xlabel('Missingness %', fontsize=10)
-        axes[0, idx].set_ylabel('Proportion Error' if idx == 0 else '', fontsize=10)
-        axes[0, idx].set_title(mechanism, fontweight='bold', fontsize=11)
-        
-        if idx == 2:
-            axes[0, idx].legend(title='Method', loc='best', frameon=True, fontsize=8)
-    
-    # Plot times (bottom row)
-    for idx, mechanism in enumerate(mechanisms):
-        data = df_time[df_time['mechanism'] == mechanism]
-        data_dodged, x_dodged = apply_ordered_dodge(data, 'missingness_pct', 'method', dodge_width=0.3)
-        
-        sns.lineplot(
-            data=data_dodged,
-            x=x_dodged,
-            y='time',
-            hue='method',
-            style='method',
-            markers=True,
-            dashes=dashes,
-            palette=palette,
-            err_style='bars',
-            errorbar=('se'),
-            ax=axes[1, idx],
-            linewidth=2,
-            markersize=8,
-            err_kws={"capsize": 3},
-            legend=False
-        )
-        
-        axes[1, idx].set_xlabel('Missingness %', fontsize=10)
-        axes[1, idx].set_ylabel('Time (s)' if idx == 0 else '', fontsize=10)
-    
-    plt.suptitle('GMM Imputation Methods: Error and Time Comparison', 
-                 fontsize=14, fontweight='bold', y=0.995)
     plt.tight_layout()
     return fig
 
@@ -502,23 +507,19 @@ if __name__ == "__main__":
         plt.close()
 
         # DA CORREGGERE!!
-        # fig_sample_time = plot_sample_size_time(df, mechanism=mechanism)
-        # fig_sample_time.savefig(f'sample_time_comparison_{mechanism}_gmm.png', dpi=300, bbox_inches='tight')
-        # plt.close()
+        fig_sample_time = plot_sample_size_time(df, mechanism=mechanism)
+        fig_sample_time.savefig(f'tests\\sample_time_comparison_{mechanism}_gmm.png', dpi=300, bbox_inches='tight')
+        plt.close()
 
-        # fig_sample_error = plot_sample_size_error(df, mechanism=mechanism)
-        # fig_sample_error.savefig(f'sample_error_comparison_{mechanism}_gmm.png', dpi=300, bbox_inches='tight')
-        # plt.close()
+        fig_sample_error = plot_sample_size_error(df, mechanism=mechanism)
+        fig_sample_error.savefig(f'tests\\sample_error_comparison_{mechanism}_gmm.png', dpi=300, bbox_inches='tight')
+        plt.close()
     
     # Heatmap
     fig_heatmap = plot_error_heatmap(df)
     fig_heatmap.savefig('tests\\error_heatmap_all_gmm.png', dpi=300, bbox_inches='tight')
     plt.close()
     
-    # Combined comparison
-    fig_combined = plot_combined_comparison(df)
-    fig_combined.savefig('tests\\combined_comparison_gmm.png', dpi=300, bbox_inches='tight')
-    plt.close()
     
     print("All visualizations generated successfully!")
     print("\nGenerated files:")
@@ -526,3 +527,5 @@ if __name__ == "__main__":
     print("- time_comparison_[MCAR/MAR/MNAR]_gmm.png")
     print("- error_heatmap_all_gmm.png")
     print("- combined_comparison_gmm.png")
+
+

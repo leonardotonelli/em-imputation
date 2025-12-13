@@ -5,6 +5,8 @@ from utils.synthetic_GMM.simulation_study_GMM import simulation_study_gmm
 from utils.synthetic_GMM.visualizations_GMM import create_full_report_gmm
 import pandas as pd
 
+
+
 ### SYNTHETIC MULTIVARIATE GAUSSIAN DATASET SIMULATION STUDY ###
 
 # Define simulation parameters

@@ -149,7 +149,7 @@ def simulation_study_gmm(
                     # Imputation methods for class labels
                     mode_prop_err = np.nan
                     knn_prop_err = np.nan
-                    mice_prop_err = np.nan
+                    rf_prop_err = np.nan
                     best_k = None
                     data_array = df_missing[feature_cols + ['class']].to_numpy()
 
@@ -161,9 +161,9 @@ def simulation_study_gmm(
 
                     mode_prop_err, mode_time = mode_imputation_labels(data_array, label_column_index=-1, true_proportions=weights)
                     knn_prop_err, knn_time = knn_imputation_labels(data_array, label_column_index=-1, true_proportions=weights, k=best_k)
-                    mice_prop_err, mice_time = mice_imputation_labels(data_array, label_column_index=-1, true_proportions=weights, iterations=5)
+                    rf_prop_err, rf_time = rf_imputation_labels(data_array, label_column_index=-1, true_proportions=weights)
 
-                    print(f"  Mode prop error: {mode_prop_err:.4f}, KNN prop error (k={best_k}): {knn_prop_err:.4f}, MICE prop error: {mice_prop_err if not np.isnan(mice_prop_err) else 'NA'}")
+                    print(f"  Mode prop error: {mode_prop_err:.4f}, KNN prop error (k={best_k}): {knn_prop_err:.4f}, RF prop error: {rf_prop_err if not np.isnan(rf_prop_err) else 'NA'}")
 
                     # Store results
                     result = {
@@ -184,10 +184,10 @@ def simulation_study_gmm(
                         'mode_imputation_prop_error': mode_prop_err,
                         'knn_imputation_prop_error': knn_prop_err,
                         'knn_imputation_k': int(best_k) if best_k is not None else None,
-                        'mice_imputation_prop_error': mice_prop_err,
+                        'rf_imputation_prop_error': rf_prop_err,
                         'mode_imputation_time': mode_time,
                         'knn_imputation_time': knn_time,
-                        'mice_imputation_time': mice_time
+                        'rf_imputation_time': rf_time
                     }
 
                     results_list.append(result)
