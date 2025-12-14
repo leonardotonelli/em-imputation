@@ -32,13 +32,13 @@ def inject_missingness(
             raise ValueError(f"Missingness percentage {miss_pct} must be between 0 and 1")
         
         n_total_cols = len(data.columns)
+
+        while miss_pct * n_total_cols / len(target_cols) > 1:
+            n_target_cols += 1
+            target_cols = np.random.choice(data.columns, size=n_target_cols, replace=False)
+            observed_cols = [col for col in data.columns if col not in target_cols]
+
         per_column_miss_pct = miss_pct * n_total_cols / len(target_cols)
-        
-        if per_column_miss_pct > 1:
-            raise ValueError(
-                f"Cannot achieve {miss_pct:.1%} overall missingness with only "
-                f"{len(target_cols)}/{n_total_cols} target columns."
-            )
         
         df_missing = data.copy()
         

@@ -99,10 +99,10 @@ def simulation_study_multivariate(
                     
                     # Save complete dataset
                     if data_path is not None:
-                        complete_filename = (f"complete_mean{mean_idx}_cov{cov_idx}_"
-                                        f"n{n_samples}.csv")
+                        complete_filepath = os.path.join(data_path, f"datasets_complete\\{n_samples}_samples")
+                        Path(complete_filepath).mkdir(parents=True, exist_ok=True)
                         df_complete.to_csv(
-                            os.path.join(data_path, complete_filename), 
+                            os.path.join(complete_filepath, f"mean{mean_idx}_cov{cov_idx}.csv"), 
                             index=False
                         )
                     
@@ -129,7 +129,7 @@ def simulation_study_multivariate(
                             df_missing_list = inject_missingness(
                                 data=df_complete,
                                 missingness_percentages=[miss_pct],
-                                target_column_percentage=0.5,
+                                target_column_percentage=0.4,
                                 mechanism=mechanism,
                                 random_state=random_state + simulation_id
                             )
@@ -138,11 +138,10 @@ def simulation_study_multivariate(
                             
                             # Save missing dataset
                             if data_path is not None:
-                                missing_filename = (f"missing_{mechanism}_mean{mean_idx}_"
-                                              f"cov{cov_idx}_n{n_samples}_"
-                                              f"miss{int(miss_pct*100)}.csv")
+                                missing_filepath = os.path.join(data_path, f"datasets_missingness\\{mechanism}\\{int(miss_pct*100)}%_missing\\{n_samples}_samples")
+                                Path(missing_filepath).mkdir(parents=True, exist_ok=True)
                                 df_missing.to_csv(
-                                    os.path.join(data_path, missing_filename), 
+                                    os.path.join(missing_filepath, f"mean{mean_idx}_cov{cov_idx}.csv"), 
                                     index=False
                                 )
                             
@@ -199,12 +198,12 @@ def simulation_study_multivariate(
                                 'missingness_pct': miss_pct,
                                 'actual_missingness_pct': actual_miss_pct,
                                 'mechanism': mechanism,
-                                'num_iterations': num_iterations,
-                                'convergence_time': em_time,
-                                'mu_error': mu_error,
-                                'sigma_error': Sigma_error,
+                                'time_per_iteration': em_time/num_iterations, #EM
+                                'convergence_time': em_time, #EM
+                                'mu_error': mu_error, #EM
+                                'sigma_error': Sigma_error, #EM
                                 'true_mu': str(means_array.tolist()),
-                                'estimated_mu': str(mu_estimated.tolist()),
+                                'estimated_mu': str(mu_estimated.tolist()), #EM
                                 'true_sigma': str(cov_matrix.tolist()),
                                 'estimated_sigma': str(Sigma_estimated.tolist()),
                                 'mean_imputation_error': mean_err,
@@ -242,13 +241,12 @@ def simulation_study_multivariate(
     print(f"Results saved to: {results_filename}")
     print("=" * 80)
     
-    # Print summary statistics
-    print("\n=== SUMMARY STATISTICS ===")
-    print(f"\nAverage iterations: {results_df['num_iterations'].mean():.1f}")
+    # Print EM summary statistics
+    print("\n=== EM SUMMARY STATISTICS ===")
     print(f"Average Mu error: {results_df['mu_error'].mean():.4f}")
     print(f"Average Sigma error: {results_df['sigma_error'].mean():.4f}")
     
-    print("\n=== Error by Mechanism ===")
+    print("\n=== EM Error by Mechanism ===")
     for mech in mechanisms:
         mech_df = results_df[results_df['mechanism'] == mech]
         print(f"{mech}: Mu Error = {mech_df['mu_error'].mean():.4f}, "
@@ -266,7 +264,7 @@ if __name__ == "__main__":
     # Define test parameters
     means_to_test = [
         [50, 100, 25, 75],
-        [10, 20, 30, 40],
+        # [10, 20, 30, 40],
     ]
     
     cov_to_test = [
@@ -276,12 +274,12 @@ if __name__ == "__main__":
             [ 2,  4, 15,  1],
             [ 3,  6,  1, 12]
         ]),
-        np.array([
-            [5, 1, 0, 0],
-            [1, 5, 1, 0],
-            [0, 1, 5, 1],
-            [0, 0, 1, 5]
-        ]),
+        # np.array([
+        #     [5, 1, 0, 0],
+        #     [1, 5, 1, 0],
+        #     [0, 1, 5, 1],
+        #     [0, 0, 1, 5]
+        # ]),
     ]
     
     n_samples_to_test = [500, 1000]
@@ -290,7 +288,7 @@ if __name__ == "__main__":
     # Run simulation study
     results = simulation_study_multivariate(
         result_path="tests",
-        data_path=None,
+        data_path="tests",
         means_to_test=means_to_test,
         cov_to_test=cov_to_test,
         n_samples_to_test=n_samples_to_test,
