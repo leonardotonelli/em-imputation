@@ -788,6 +788,222 @@ def plot_time_per_iteration_GMM(df,
     plt.tight_layout()
     return fig
 
+def plot_GMM_flexible(df, 
+                     x_axis='n_samples',
+                     y_axis='time_per_iteration',
+                     mechanism=None, 
+                     config_idx=None,
+                     mean_idx=None, 
+                     cov_idx=None,
+                     weight_idx=None,
+                     n_components=None,
+                     n_samples=None,
+                     missingness_pct=None,
+                     hue=None,
+                     figsize=(10, 6)):
+    """
+    Flexible plotting function for GMM results with customizable x and y axes.
+    
+    Parameters:
+    -----------
+    df : pandas DataFrame
+        Simulation results for GMM
+    x_axis : str
+        Column name for x-axis. Common options:
+        - 'n_samples': Sample size
+        - 'missingness_pct': Missingness percentage (target)
+        - 'actual_missingness_pct': Actual missingness percentage achieved
+        - 'n_components': Number of GMM components
+        - 'mechanism': Missingness mechanism
+    y_axis : str
+        Column name for y-axis. Common options:
+        - 'time_per_iteration': Average time per EM iteration
+        - 'convergence_time': Total EM computation time
+        - 'pi_error': Error in component weights estimation
+    mechanism : str or None
+        Missingness mechanism ('MCAR', 'MAR', or 'MNAR'). If None, includes all.
+    config_idx : int or None
+        Configuration index to filter. If None, includes all.
+    mean_idx : int or None
+        Mean configuration index to filter. If None, includes all.
+    cov_idx : int or None
+        Covariance configuration index to filter. If None, includes all.
+    weight_idx : int or None
+        Weight configuration index to filter. If None, includes all.
+    n_components : int or None
+        Number of GMM components to filter. If None, includes all.
+    n_samples : int or None
+        Sample size to filter. If None, includes all.
+    missingness_pct : float or None
+        Missingness percentage to filter (e.g., 0.3 for 30%). If None, includes all.
+    hue : str or None
+        Column name to use for color grouping. Common options:
+        - 'mechanism': Color by missingness mechanism
+        - 'n_components': Color by number of components
+        - None: Single color plot
+    figsize : tuple
+        Figure size
+        
+    Returns:
+    --------
+    matplotlib.figure.Figure or None
+        The generated figure, or None if no data matches filters
+    """
+    # Start with full dataframe
+    data = df.copy()
+    
+    # Apply filters
+    filter_description = []
+    
+    if mechanism is not None:
+        data = data[data['mechanism'] == mechanism]
+        filter_description.append(f"Mechanism: {mechanism}")
+    
+    if config_idx is not None:
+        data = data[data['config_idx'] == config_idx]
+        filter_description.append(f"Config: {config_idx}")
+    
+    if mean_idx is not None:
+        data = data[data['mean_idx'] == mean_idx]
+        filter_description.append(f"Mean: {mean_idx}")
+    
+    if cov_idx is not None:
+        data = data[data['cov_idx'] == cov_idx]
+        filter_description.append(f"Cov: {cov_idx}")
+    
+    if weight_idx is not None:
+        data = data[data['weight_idx'] == weight_idx]
+        filter_description.append(f"Weight: {weight_idx}")
+    
+    if n_components is not None:
+        data = data[data['n_components'] == n_components]
+        filter_description.append(f"Components: {n_components}")
+    
+    if n_samples is not None:
+        data = data[data['n_samples'] == n_samples]
+        filter_description.append(f"n={n_samples}")
+    
+    if missingness_pct is not None:
+        data = data[data['missingness_pct'] == missingness_pct]
+        filter_description.append(f"Miss: {missingness_pct*100:.0f}%")
+    
+    # Check if we have data
+    if len(data) == 0:
+        print("No data matching the specified filters!")
+        return None
+    
+    # Create working copy for plotting
+    plot_data = data.copy()
+    
+    # Handle special transformations for specific columns
+    if x_axis == 'missingness_pct':
+        plot_data['missingness_pct_plot'] = plot_data['missingness_pct'] * 100
+        x_col = 'missingness_pct_plot'
+        x_label = 'Missingness Percentage (%)'
+    elif x_axis == 'actual_missingness_pct':
+        plot_data['actual_missingness_pct_plot'] = plot_data['actual_missingness_pct'] * 100
+        x_col = 'actual_missingness_pct_plot'
+        x_label = 'Actual Missingness Percentage (%)'
+    else:
+        x_col = x_axis
+        x_label = x_axis.replace('_', ' ').title()
+    
+    if y_axis == 'missingness_pct':
+        plot_data['missingness_pct_plot_y'] = plot_data['missingness_pct'] * 100
+        y_col = 'missingness_pct_plot_y'
+        y_label = 'Missingness Percentage (%)'
+    elif y_axis == 'actual_missingness_pct':
+        plot_data['actual_missingness_pct_plot_y'] = plot_data['actual_missingness_pct'] * 100
+        y_col = 'actual_missingness_pct_plot_y'
+        y_label = 'Actual Missingness Percentage (%)'
+    else:
+        y_col = y_axis
+        y_label = y_axis.replace('_', ' ').title()
+    
+    # Create plot
+    fig, ax = plt.subplots(figsize=figsize)
+    
+    # Define color palette for common hue options
+    palette = None
+    if hue == 'mechanism':
+        palette = {'MCAR': '#e74c3c', 'MAR': '#3498db', 'MNAR': '#2ecc71'}
+    
+    # Determine dodge width based on x_axis type
+    if hue is not None and hue in plot_data.columns:
+        # Estimate dodge width based on x-axis range
+        x_range = plot_data[x_col].max() - plot_data[x_col].min()
+        x_unique = len(plot_data[x_col].unique())
+        dodge_width = x_range / (x_unique * 20) if x_unique > 0 else 15
+        
+        # Apply dodging if using apply_ordered_dodge function
+        try:
+            data_dodged, x_dodged = apply_ordered_dodge(plot_data, x_col, hue, dodge_width=dodge_width)
+            sns.lineplot(
+                data=data_dodged,
+                x=x_dodged,
+                y=y_col,
+                hue=hue,
+                style=hue,
+                markers=True,
+                palette=palette,
+                err_style='bars',
+                errorbar='se',
+                ax=ax,
+                linewidth=2,
+                markersize=8,
+                err_kws={"capsize": 3}
+            )
+        except NameError:
+            # If apply_ordered_dodge not available, use standard seaborn
+            sns.lineplot(
+                data=plot_data,
+                x=x_col,
+                y=y_col,
+                hue=hue,
+                style=hue,
+                markers=True,
+                palette=palette,
+                err_style='bars',
+                errorbar='se',
+                ax=ax,
+                linewidth=2,
+                markersize=8,
+                err_kws={"capsize": 3}
+            )
+        
+        legend_title = hue.replace('_', ' ').title()
+        ax.legend(title=legend_title, loc='best', frameon=True)
+    else:
+        # Single line plot
+        sns.lineplot(
+            data=plot_data,
+            x=x_col,
+            y=y_col,
+            marker='o',
+            color='#e74c3c',
+            err_style='bars',
+            errorbar='se',
+            ax=ax,
+            linewidth=2,
+            markersize=8,
+            err_kws={"capsize": 3}
+        )
+    
+    # Set labels
+    ax.set_xlabel(x_label, fontsize=12)
+    ax.set_ylabel(y_label, fontsize=12)
+    
+    # Build title
+    title = f'{y_label} vs {x_label}'
+    if filter_description:
+        title += '\n' + ', '.join(filter_description)
+    
+    ax.set_title(title, fontsize=14, fontweight='bold')
+    ax.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    return fig
+
 
 def create_full_report_gmm(df, output_folder='tests'):
     """

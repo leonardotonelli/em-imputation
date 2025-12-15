@@ -80,28 +80,28 @@ WEIGHTS_GMM = [
 N_SAMPLES_GMM = np.arange(100, 5000, 200)
 PERCENTAGES_CLASS_MISSINGNESS = np.arange(0.1, 0.71, 0.1)
 
-# # Run GMM simulation study (if not in results folder)
-# results_gmm = simulation_study_gmm(
-#     result_path="results\\synthetic_gmm",
-#     data_path="data\\synthetic_gmm",
-#     means_to_test=MEANS_GMM,
-#     cov_matrices_to_test=COVS_GMM,
-#     weights_to_test=WEIGHTS_GMM,
-#     n_samples_to_test=N_SAMPLES_GMM,
-#     percentages_to_test=PERCENTAGES_CLASS_MISSINGNESS,
-#     max_iter=200,
-#     tol=1e-5,
-#     random_state=42
-# )
+# Run GMM simulation study (if not in results folder)
+results_gmm = simulation_study_gmm(
+    result_path="results\\synthetic_gmm_alternative",
+    data_path="data\\synthetic_gmm_alternative",
+    means_to_test=MEANS_GMM,
+    cov_matrices_to_test=COVS_GMM,
+    weights_to_test=WEIGHTS_GMM,
+    n_samples_to_test=N_SAMPLES_GMM,
+    percentages_to_test=PERCENTAGES_CLASS_MISSINGNESS,
+    max_iter=200,
+    tol=1e-5,
+    random_state=42
+)
 
-# If the results folder already exists, load the results
-results_gmm = pd.read_csv("results\\synthetic_gmm\\simulation_results_gmm.csv")
+# # If the results folder already exists, load the results
+# results_gmm = pd.read_csv("results\\synthetic_gmm\\simulation_results_gmm.csv")
 
 # Visualize GMM results
-create_full_report_gmm(results_gmm, output_folder='plots\\synthetic_gmm')
+create_full_report_gmm(results_gmm, output_folder='plots\\synthetic_gmm_alternative')
 
 print("\n" + "="*80)
 print("ALL SIMULATION STUDIES COMPLETED")
 print("="*80)
-print("\nMultivariate Gaussian results: plots\\synthetic_multivariate")
+print("\nMultivariate Gaussian results: plots\\synthetic_gmm_alternative")
 print("GMM results: plots\\synthetic_gmm")

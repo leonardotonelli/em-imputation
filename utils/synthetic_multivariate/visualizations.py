@@ -591,6 +591,278 @@ def plot_sample_size_time(df, mechanism='MCAR', figsize=(10, 6)):
     plt.tight_layout()
     return fig
 
+def plot_method_comparison_flexible(df, 
+                                   x_axis='n_samples',
+                                   y_axis='time',
+                                   mechanism=None,
+                                   missingness_pct=None,
+                                   n_samples=None,
+                                   mean_idx=None,
+                                   cov_idx=None,
+                                   methods=None,
+                                   log_scale=None,
+                                   figsize=(10, 6)):
+    """
+    Flexible plotting function to compare different imputation methods.
+    
+    Parameters:
+    -----------
+    df : pandas DataFrame
+        Simulation results containing method comparison data
+    x_axis : str
+        Column name for x-axis. Options:
+        - 'n_samples': Sample size
+        - 'missingness_pct': Missingness percentage
+        - 'actual_missingness_pct': Actual missingness percentage achieved
+        - 'mechanism': Missingness mechanism
+    y_axis : str
+        Metric to plot. Options:
+        - 'time': Computation time (uses convergence_time, *_imputation_time)
+        - 'error': Imputation error (mean parameter error)
+        - 'cov_error': Covariance error
+    mechanism : str or None
+        Missingness mechanism ('MCAR', 'MAR', or 'MNAR'). If None, includes all.
+    missingness_pct : float or None
+        Missingness percentage to filter (e.g., 0.3 for 30%). If None, includes all.
+    n_samples : int or None
+        Sample size to filter. If None, includes all.
+    mean_idx : int or None
+        Mean configuration index to filter. If None, includes all.
+    cov_idx : int or None
+        Covariance configuration index to filter. If None, includes all.
+    methods : list or None
+        List of methods to include. If None, includes all available methods.
+        Options: ['EM', 'MICE', 'KNN', 'Mode', 'Median', 'Mean']
+    log_scale : bool or None
+        Whether to use log scale for y-axis. If None, decides automatically based on range.
+    figsize : tuple
+        Figure size
+        
+    Returns:
+    --------
+    matplotlib.figure.Figure or None
+        The generated figure, or None if no data matches filters
+    """
+    # Define method column mappings based on y_axis
+    if y_axis == 'time':
+        method_cols = {
+            'convergence_time': 'EM',
+            'mice_imputation_time': 'MICE',
+            'knn_imputation_time': 'KNN',
+            'mode_imputation_time': 'Mode',
+            'median_imputation_time': 'Median',
+            'mean_imputation_time': 'Mean',
+        }
+    elif y_axis == 'error':
+        method_cols = {
+            'mu_error': 'EM',
+            'mice_imputation_error': 'MICE',
+            'knn_imputation_error': 'KNN',
+            'mode_imputation_error': 'Mode',
+            'median_imputation_error': 'Median',
+            'mean_imputation_error': 'Mean',
+        }
+    elif y_axis == 'cov_error':
+        method_cols = {
+            'sigma_error': 'EM',
+            'mice_imputation_cov_error': 'MICE',
+            'knn_imputation_cov_error': 'KNN',
+            'mode_imputation_cov_error': 'Mode',
+            'median_imputation_cov_error': 'Median',
+            'mean_imputation_cov_error': 'Mean',
+        }
+    else:
+        print(f"y_axis='{y_axis}' not recognized. Use 'time', 'error', or 'cov_error'")
+        return None
+    
+    # Filter to only existing columns
+    method_cols = {k: v for k, v in method_cols.items() if k in df.columns}
+    
+    if not method_cols:
+        print(f"No method columns found for y_axis='{y_axis}'")
+        return None
+    
+    # Filter methods if specified
+    if methods is not None:
+        method_cols = {k: v for k, v in method_cols.items() if v in methods}
+        if not method_cols:
+            print(f"None of the specified methods {methods} found in data")
+            return None
+    
+    # Melt data to long format
+    id_vars = ['mechanism', 'missingness_pct', 'actual_missingness_pct', 'n_samples', 
+               'mean_idx', 'cov_idx', 'simulation_id']
+    id_vars = [col for col in id_vars if col in df.columns]
+    
+    df_long = df.melt(
+        id_vars=id_vars,
+        value_vars=list(method_cols.keys()),
+        var_name='method',
+        value_name='value'
+    )
+    
+    df_long['method'] = df_long['method'].map(method_cols)
+    
+    # Apply filters
+    data = df_long.copy()
+    filter_description = []
+    
+    if mechanism is not None:
+        if 'mechanism' in data.columns:
+            data = data[data['mechanism'] == mechanism]
+            filter_description.append(f"Mechanism: {mechanism}")
+    
+    if missingness_pct is not None:
+        if 'missingness_pct' in data.columns:
+            data = data[data['missingness_pct'] == missingness_pct]
+            filter_description.append(f"Miss: {missingness_pct*100:.0f}%")
+    
+    if n_samples is not None:
+        if 'n_samples' in data.columns:
+            data = data[data['n_samples'] == n_samples]
+            filter_description.append(f"n={n_samples}")
+    
+    if mean_idx is not None:
+        if 'mean_idx' in data.columns:
+            data = data[data['mean_idx'] == mean_idx]
+            filter_description.append(f"Mean: {mean_idx}")
+    
+    if cov_idx is not None:
+        if 'cov_idx' in data.columns:
+            data = data[data['cov_idx'] == cov_idx]
+            filter_description.append(f"Cov: {cov_idx}")
+    
+    # Check if we have data
+    if len(data) == 0:
+        print("No data matching the specified filters!")
+        return None
+    
+    # Handle special transformations for x-axis
+    if x_axis == 'missingness_pct':
+        data['missingness_pct_plot'] = data['missingness_pct'] * 100
+        x_col = 'missingness_pct_plot'
+        x_label = 'Missingness Percentage (%)'
+    elif x_axis == 'actual_missingness_pct':
+        data['actual_missingness_pct_plot'] = data['actual_missingness_pct'] * 100
+        x_col = 'actual_missingness_pct_plot'
+        x_label = 'Actual Missingness Percentage (%)'
+    else:
+        x_col = x_axis
+        x_label = x_axis.replace('_', ' ').title()
+    
+    # Create plot
+    fig, ax = plt.subplots(figsize=figsize)
+    
+    # Define color palette
+    palette = {
+        'EM': '#e74c3c',
+        'MICE': '#3498db',
+        'KNN': '#2ecc71',
+        'Mode': '#9b59b6',
+        'Median': '#f39c12',
+        'Mean': '#95a5a6',
+    }
+    
+    # Filter palette to only included methods
+    palette = {k: v for k, v in palette.items() if k in data['method'].unique()}
+    
+    # Apply dodge if using numeric x-axis
+    if x_col in data.columns and data[x_col].dtype in ['int64', 'float64']:
+        try:
+            # Estimate dodge width based on x-axis range
+            x_range = data[x_col].max() - data[x_col].min()
+            x_unique = len(data[x_col].unique())
+            dodge_width = x_range / (x_unique * 20) if x_unique > 0 else 15
+            
+            data_dodged, x_dodged = apply_ordered_dodge(data, x_col, 'method', dodge_width=dodge_width)
+            
+            sns.lineplot(
+                data=data_dodged,
+                x=x_dodged,
+                y='value',
+                hue='method',
+                style='method',
+                markers=True,
+                palette=palette,
+                err_style='bars',
+                errorbar='se',
+                ax=ax,
+                linewidth=2,
+                markersize=8,
+                err_kws={"capsize": 3}
+            )
+        except NameError:
+            # If apply_ordered_dodge not available, use standard seaborn
+            sns.lineplot(
+                data=data,
+                x=x_col,
+                y='value',
+                hue='method',
+                style='method',
+                markers=True,
+                palette=palette,
+                err_style='bars',
+                errorbar='se',
+                ax=ax,
+                linewidth=2,
+                markersize=8,
+                err_kws={"capsize": 3}
+            )
+    else:
+        # For categorical x-axis
+        sns.lineplot(
+            data=data,
+            x=x_col,
+            y='value',
+            hue='method',
+            style='method',
+            markers=True,
+            palette=palette,
+            err_style='bars',
+            errorbar='se',
+            ax=ax,
+            linewidth=2,
+            markersize=8,
+            err_kws={"capsize": 3}
+        )
+    
+    # Set labels
+    ax.set_xlabel(x_label, fontsize=12)
+    
+    # Set appropriate y-axis label
+    if y_axis == 'time':
+        y_label = 'Time (seconds)'
+    elif y_axis == 'error':
+        y_label = 'Mean Parameter Error'
+    elif y_axis == 'cov_error':
+        y_label = 'Covariance Error'
+    else:
+        y_label = y_axis.replace('_', ' ').title()
+    
+    ax.set_ylabel(y_label, fontsize=12)
+    
+    # Build title
+    title = f'{y_label} vs {x_label}'
+    if filter_description:
+        title += '\n' + ', '.join(filter_description)
+    
+    ax.set_title(title, fontsize=14, fontweight='bold')
+    ax.legend(title='Method', loc='best', frameon=True)
+    ax.grid(True, alpha=0.3)
+    
+    # Handle log scale
+    if log_scale is None:
+        # Auto-decide based on range
+        value_range = data['value'].max() / (data['value'].min() + 1e-10)
+        if value_range > 100:
+            ax.set_yscale('log')
+    elif log_scale:
+        ax.set_yscale('log')
+    
+    plt.tight_layout()
+    return fig
+
+
 def create_full_report(df, output_folder='tests'):
     """
     Generate a complete set of visualization reports for missing data imputation analysis.
