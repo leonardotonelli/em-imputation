@@ -1,0 +1,377 @@
+import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from time import time
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, confusion_matrix
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.impute import SimpleImputer, KNNImputer 
+# Ensure the iterative imputer is available
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import IterativeImputer 
+
+from utils.synthetic_GMM.EM_GMM import em_semi_supervised, e_step_semi_supervised
+
+
+def _mask_labels(y, missing_pct, random_state=None):
+    rng = np.random.RandomState(random_state)
+    maskable = ~np.isnan(y)
+    idx = np.where(maskable)[0]
+    n_mask = int(np.round(len(idx) * missing_pct))
+    masked_idx = rng.choice(idx, size=n_mask, replace=False)
+    y_masked = y.copy().astype(float)
+    y_masked[masked_idx] = np.nan
+    return y_masked, masked_idx
+
+
+def _mode_impute(labels_masked):
+    """
+    Returns: (imputed_labels, pi_estimated)
+    """
+    labels = labels_masked.copy()
+    mask = np.isnan(labels)
+    if mask.sum() == 0:
+        pi_est = np.mean(labels == 1)
+        return labels, pi_est
+    
+    vals, counts = np.unique(labels[~mask], return_counts=True)
+    if len(vals) == 0:
+        labels[mask] = 0
+        return labels, 0.0
+    
+    mode = vals[np.argmax(counts)]
+    labels[mask] = mode
+    
+    # Pi estimated: proportion of class 1 in the observed (non-missing) data
+    pi_est = np.sum(labels[~mask] == 1) / (~mask).sum()
+    
+    return labels, pi_est
+
+
+def _knn_impute(X, labels_masked, k=5):
+    """
+    Returns: (imputed_labels, pi_estimated)
+    """
+    labels = labels_masked.copy()
+    mask = np.isnan(labels)
+    if mask.sum() == 0:
+        pi_est = np.mean(labels == 1)
+        return labels, pi_est
+    
+    if (~mask).sum() == 0:
+        return _mode_impute(labels)
+    
+    knn = KNeighborsClassifier(n_neighbors=min(k, (~mask).sum()))
+    knn.fit(X[~mask], labels[~mask])
+    labels[mask] = knn.predict(X[mask])
+    
+    # Pi estimated: use the predicted probabilities from KNN
+    proba = knn.predict_proba(X)
+    # proba[:, 1] gives probability of class 1
+    if proba.shape[1] == 2:
+        pi_est = np.mean(proba[:, 1])
+    else:
+        # Fallback if only one class in training data
+        pi_est = np.mean(labels == 1)
+    
+    return labels, pi_est
+
+
+def _rf_impute(X, labels_masked, n_estimators=100, random_state=42):
+    """
+    Returns: (imputed_labels, pi_estimated)
+    """
+    labels = labels_masked.copy()
+    mask = np.isnan(labels)
+    if mask.sum() == 0:
+        pi_est = np.mean(labels == 1)
+        return labels, pi_est
+    
+    if (~mask).sum() == 0:
+        return _mode_impute(labels)
+    
+    rf = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state)
+    rf.fit(X[~mask], labels[~mask])
+    labels[mask] = rf.predict(X[mask])
+    
+    # Pi estimated: use the predicted probabilities from Random Forest
+    proba = rf.predict_proba(X)
+    # proba[:, 1] gives probability of class 1
+    if proba.shape[1] == 2:
+        pi_est = np.mean(proba[:, 1])
+    else:
+        # Fallback if only one class in training data
+        pi_est = np.mean(labels == 1)
+    
+    return labels, pi_est
+
+
+def _em_impute(X, labels_masked, n_components=2, max_iter=200, tol=1e-4, verbose=False):
+    """
+    Returns: (imputed_labels, pi_estimated)
+    """
+    # Use semi-supervised EM implementation
+    y = labels_masked.copy()
+    y = y.astype(float)
+    pi, mu, Sigma, _ = em_semi_supervised(X, y, n_components=n_components, max_iter=max_iter, tol=tol, verbose=verbose)
+    r = e_step_semi_supervised(X, y, pi, mu, Sigma)
+    assign = np.argmax(r, axis=1)
+    
+    # Create mapping from clusters to class labels
+    mapping = {}
+    labeled_idx = ~np.isnan(labels_masked)
+    for c in range(n_components):
+        members = np.where(assign == c)[0]
+        if len(members) == 0:
+            mapping[c] = 0
+            continue
+        labeled_members = [m for m in members if labeled_idx[m]]
+        if len(labeled_members) == 0:
+            mapping[c] = 0
+        else:
+            vals, counts = np.unique(labels_masked[labeled_members].astype(int), return_counts=True)
+            mapping[c] = vals[np.argmax(counts)]
+
+    pred = np.array([mapping[c] for c in assign])
+    
+    # Pi estimated: use the soft assignments (responsibilities) from EM
+    # Sum the responsibilities for clusters mapped to class 1
+    pi_est = 0.0
+    for c in range(n_components):
+        if mapping[c] == 1:
+            pi_est += np.sum(r[:, c])
+    pi_est /= len(X)
+    
+    return pred, pi_est
+
+
+def evaluate_imputers(X_pca, y_experts, y_groundtruth, n_components=2):
+    """
+    Imputes missing values in y_experts using various methods (Mode, KNN, RF, EM),
+    evaluates the results against y_groundtruth, and computes the difference 
+    in class proportions (pi) using each algorithm's internal estimate.
+
+    Args:
+        X_pca (np.array): The PCA-transformed feature matrix (auxiliary features).
+        y_experts (np.array): The expert labels with missing values (e.g., NaN).
+        y_groundtruth (np.array): The ground truth labels.
+        n_components (int): Number of components for EM-GMM imputation.
+
+    Returns:
+        pd.DataFrame: A DataFrame with Accuracy, Recall, and the difference 
+                      in estimated vs. true class proportions for each imputer.
+    """
+    
+    # Ensure ground truth is integer type
+    y_true = y_groundtruth.astype(int)
+
+    # Calculate True Class Proportions (pi_true)
+    n_total = len(y_true)
+    pi_true_1 = np.sum(y_true == 1) / n_total
+    
+    results = []
+
+    # Define imputation methods
+    imputation_methods = {
+        'Mode Imputer': lambda: _mode_impute(y_experts),
+        'KNN Imputer (k=5)': lambda: _knn_impute(X_pca, y_experts, k=5),
+        'Random Forest Imputer': lambda: _rf_impute(X_pca, y_experts, n_estimators=100, random_state=42),
+        'EM-GMM Imputer': lambda: _em_impute(X_pca, y_experts, n_components=n_components, max_iter=200, tol=1e-4, verbose=False)
+    }
+
+    # Loop through imputation methods
+    for name, impute_func in imputation_methods.items():
+        # Perform imputation and get algorithm's pi estimate
+        y_pred, pi_est_1 = impute_func()
+        y_pred = y_pred.astype(int)
+        
+        # Calculate Metrics
+        acc = accuracy_score(y_true, y_pred)
+        
+        # Calculate recall for both classes
+        rec_class_0 = recall_score(y_true, y_pred, pos_label=0, zero_division=0)
+        rec_class_1 = recall_score(y_true, y_pred, pos_label=1, zero_division=0)
+        
+        # Calculate precision and F1
+        prec_class_1 = precision_score(y_true, y_pred, pos_label=1, zero_division=0)
+        f1_class_1 = f1_score(y_true, y_pred, pos_label=1, zero_division=0)
+        
+        # Calculate confusion matrix for additional insight
+        tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
+        
+        # Calculate the difference in proportions for Class 1 (Est - True)
+        # Using the algorithm's internal estimate, not empirical count
+        pi_diff_class_1 = pi_est_1 - pi_true_1
+        
+        # Empirical pi from predictions (for comparison)
+        pi_empirical = np.sum(y_pred == 1) / n_total
+        
+        results.append({
+            'Imputer': name,
+            'Accuracy': acc,
+            'Recall_Class_0': rec_class_0,
+            'Recall_Class_1': rec_class_1,
+            'Precision_Class_1': prec_class_1,
+            'F1_Class_1': f1_class_1,
+            'TP': tp,
+            'FP': fp,
+            'TN': tn,
+            'FN': fn,
+            'Pi_Estimated': pi_est_1,
+            'Pi_Empirical': pi_empirical,
+            'Pi_Diff_Class_1': pi_diff_class_1
+        })
+
+    # Return the Results DataFrame
+    results_df = pd.DataFrame(results).set_index('Imputer')
+    return results_df
+
+
+def visualize_evaluation_results(results_df, save_dir='evaluation_plots'):
+    """
+    Visualizes the imputation evaluation results (Accuracy, Recall, 
+    and Pi Difference) using bar plots and saves them to a directory.
+
+    Args:
+        results_df (pd.DataFrame): DataFrame containing 'Accuracy', 'Recall', 
+                                   and 'Pi_Diff_Class_1' columns.
+        save_dir (str): Directory where the plots will be saved.
+    """
+
+    # Prepare the Save Directory
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+        print(f"Created directory: {save_dir}")
+    
+    # Define the metrics and their plot parameters
+    metrics = {
+        'Accuracy': {
+            'title': 'Imputation Method Accuracy vs. Ground Truth',
+            'ylabel': 'Accuracy Score',
+            'color': 'skyblue',
+            'ylim': (0, 1.05)
+        },
+        'Recall_Class_1': {
+            'title': 'Imputation Method Recall (Class 1) vs. Ground Truth',
+            'ylabel': 'Recall Score (Class 1)',
+            'color': 'lightcoral',
+            'ylim': (0, 1.05)
+        },
+        'Precision_Class_1': {
+            'title': 'Imputation Method Precision (Class 1) vs. Ground Truth',
+            'ylabel': 'Precision Score (Class 1)',
+            'color': 'lightyellow',
+            'ylim': (0, 1.05)
+        },
+        'F1_Class_1': {
+            'title': 'Imputation Method F1 Score (Class 1) vs. Ground Truth',
+            'ylabel': 'F1 Score (Class 1)',
+            'color': 'lightblue',
+            'ylim': (0, 1.05)
+        },
+        'Pi_Diff_Class_1': {
+            'title': 'Distributional Bias: $\hat{\pi}_1 - \pi_1',
+            'ylabel': 'F1 Score (Class 1)',
+            'color': 'lightgreen',
+            'ylim': (0, 1.05)
+        }
+    }
+
+    # Create and Save Plots
+    print("Generating and saving plots...")
+    
+    for col, params in metrics.items():
+        if col not in results_df.columns:
+            print(f"Skipping plot for '{col}' - column not found in results.")
+            continue
+            
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        # Create bar plot
+        x_pos = np.arange(len(results_df.index))
+        bars = ax.bar(x_pos, results_df[col], color=params['color'], alpha=0.7, edgecolor='black')
+        
+        # Add value labels on bars
+        for i, (idx, row) in enumerate(results_df.iterrows()):
+            value = row[col]
+            ax.text(i, value + (0.02 if value >= 0 else -0.02), 
+                   f'{value:.3f}', ha='center', va='bottom' if value >= 0 else 'top',
+                   fontsize=10, fontweight='bold')
+        
+        ax.set_title(params['title'], fontsize=16, fontweight='bold')
+        ax.set_xlabel('Imputation Method', fontsize=12)
+        ax.set_ylabel(params['ylabel'], fontsize=12)
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels(results_df.index, rotation=15, ha='right')
+        ax.grid(axis='y', linestyle='--', alpha=0.5)
+        
+        # Set y-axis limits if specified
+        if params['ylim'] is not None:
+            ax.set_ylim(params['ylim'])
+        
+        # For the Pi Difference plot, add a reference line at zero
+        if col == 'Pi_Diff_Class_1':
+            ax.axhline(0, color='red', linestyle='--', linewidth=2, 
+                      label=r'Zero Bias ($\Delta\pi=0$)', alpha=0.8)
+            ax.legend(fontsize=11)
+        
+        plt.tight_layout()
+        
+        # Save the figure
+        filename = f"{col}_bar_plot.png"
+        save_path = os.path.join(save_dir, filename)
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        print(f"Saved: {save_path}")
+        plt.close()
+    
+
+    # Create and Save Plots
+    print("Generating and saving plots...")
+    
+    for col, params in metrics.items():
+        if col not in results_df.columns:
+            print(f"Skipping plot for '{col}' - column not found in results.")
+            continue
+            
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        # Create bar plot
+        x_pos = np.arange(len(results_df.index))
+        bars = ax.bar(x_pos, results_df[col], color=params['color'], alpha=0.7, edgecolor='black')
+        
+        # Add value labels on bars
+        for i, (idx, row) in enumerate(results_df.iterrows()):
+            value = row[col]
+            ax.text(i, value + (0.02 if value >= 0 else -0.02), 
+                   f'{value:.3f}', ha='center', va='bottom' if value >= 0 else 'top',
+                   fontsize=10, fontweight='bold')
+        
+        ax.set_title(params['title'], fontsize=16, fontweight='bold')
+        ax.set_xlabel('Imputation Method', fontsize=12)
+        ax.set_ylabel(params['ylabel'], fontsize=12)
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels(results_df.index, rotation=15, ha='right')
+        ax.grid(axis='y', linestyle='--', alpha=0.5)
+        
+        # Set y-axis limits if specified
+        if params['ylim'] is not None:
+            ax.set_ylim(params['ylim'])
+        
+        # For the Pi Difference plot, add a reference line at zero
+        if col == 'Pi_Diff_Class_1':
+            ax.axhline(0, color='red', linestyle='--', linewidth=2, 
+                      label=r'Zero Bias ($\Delta\pi=0$)', alpha=0.8)
+            ax.legend(fontsize=11)
+        
+        plt.tight_layout()
+        
+        # Save the figure
+        filename = f"{col}_bar_plot.png"
+        save_path = os.path.join(save_dir, filename)
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        print(f"Saved: {save_path}")
+        plt.close()
+    
+    print(f"\nAll plots saved to '{save_dir}/' directory.")

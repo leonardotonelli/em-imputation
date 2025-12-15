@@ -27,7 +27,7 @@ def plot_error_heatmap(df, figsize=(12, 4)):
     df_error = prepare_error_data(df)
     
     fig, axes = plt.subplots(1, 3, figsize=figsize, sharey=True)
-    cmaps = ['RdYlGn_r', 'viridis', 'magma']
+    cmaps = ['RdYlGn_r', 'viridis_r', 'magma_r']
     
     for idx, mechanism in enumerate(['MCAR', 'MAR', 'MNAR']):
         data = df_error[df_error['mechanism'] == mechanism]

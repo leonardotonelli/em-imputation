@@ -228,7 +228,6 @@ def simulation_study_gmm(
     
     # Summary statistics
     print("\n=== EM SUMMARY STATISTICS ===")
-    print(f"\nAverage iterations: {results_df['num_iterations'].mean():.1f}")
     print(f"Average Pi error: {results_df['pi_error'].mean():.4f}")
     
     print("\n=== EM Error by Mechanism ===")
