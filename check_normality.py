@@ -66,7 +66,7 @@ plt.grid(True, linestyle='--', alpha=0.5)
 plt.legend(title='Ground Truth')
 
 # Save the plot to the 'tests' folder (using absolute path)
-OUTPUT_DIR = os.path.join(BASE_DIR, 'tests')
+OUTPUT_DIR = os.path.join(BASE_DIR, 'tests\\3_d')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 save_path = os.path.join(OUTPUT_DIR, "normality_check_pca.png")
 

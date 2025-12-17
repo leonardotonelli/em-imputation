@@ -104,7 +104,7 @@ def _rf_impute(X, labels_masked, n_estimators=100, random_state=42):
     else:
         # Fallback if only one class in training data
         pi_est = np.mean(labels == 1)
-    
+
     return labels, pi_est
 
 
@@ -112,39 +112,43 @@ def _em_impute(X, labels_masked, n_components=2, max_iter=200, tol=1e-4, verbose
     """
     Returns: (imputed_labels, pi_estimated)
     """
-    # Use semi-supervised EM implementation
-    y = labels_masked.copy()
-    y = y.astype(float)
-    pi, mu, Sigma, _ = em_semi_supervised(X, y, n_components=n_components, max_iter=max_iter, tol=tol, verbose=verbose)
-    r = e_step_semi_supervised(X, y, pi, mu, Sigma)
+    y = labels_masked.astype(float)
+
+    # Run EM
+    pi_est, mu, Sigma, _ = em_semi_supervised(
+        X, y,
+        n_components=n_components,
+        max_iter=max_iter,
+        tol=tol,
+        verbose=verbose
+    )
+
+    # Responsibilities and hard assignments
+    r = e_step_semi_supervised(X, y, pi_est, mu, Sigma)
     assign = np.argmax(r, axis=1)
-    
-    # Create mapping from clusters to class labels
+
+    # Map clusters -> class labels via majority vote on labeled data
     mapping = {}
     labeled_idx = ~np.isnan(labels_masked)
+
     for c in range(n_components):
         members = np.where(assign == c)[0]
-        if len(members) == 0:
-            mapping[c] = 0
-            continue
-        labeled_members = [m for m in members if labeled_idx[m]]
+        labeled_members = members[labeled_idx[members]]
+
         if len(labeled_members) == 0:
             mapping[c] = 0
         else:
-            vals, counts = np.unique(labels_masked[labeled_members].astype(int), return_counts=True)
+            vals, counts = np.unique(
+                labels_masked[labeled_members].astype(int),
+                return_counts=True
+            )
             mapping[c] = vals[np.argmax(counts)]
 
+    # Imputed labels
     pred = np.array([mapping[c] for c in assign])
-    
-    # Pi estimated: use the soft assignments (responsibilities) from EM
-    # Sum the responsibilities for clusters mapped to class 1
-    pi_est = 0.0
-    for c in range(n_components):
-        if mapping[c] == 1:
-            pi_est += np.sum(r[:, c])
-    pi_est /= len(X)
-    
-    return pred, pi_est
+
+    return pred, pi_est[1]
+
 
 
 def evaluate_imputers(X_pca, y_experts, y_groundtruth, n_components=2):
@@ -203,7 +207,7 @@ def evaluate_imputers(X_pca, y_experts, y_groundtruth, n_components=2):
         
         # Calculate the difference in proportions for Class 1 (Est - True)
         # Using the algorithm's internal estimate, not empirical count
-        pi_diff_class_1 = pi_est_1 - pi_true_1
+        pi_diff_class_1 = abs(pi_est_1 - pi_true_1)
         
         # Empirical pi from predictions (for comparison)
         pi_empirical = np.sum(y_pred == 1) / n_total
@@ -272,8 +276,8 @@ def visualize_evaluation_results(results_df, save_dir='evaluation_plots'):
             'ylim': (0, 1.05)
         },
         'Pi_Diff_Class_1': {
-            'title': 'Distributional Bias: $\hat{\pi}_1 - \pi_1',
-            'ylabel': 'F1 Score (Class 1)',
+            'title': 'Distributional Bias',
+            'ylabel': 'p',
             'color': 'lightgreen',
             'ylim': (0, 1.05)
         }

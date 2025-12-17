@@ -241,7 +241,7 @@ def simulation_study_gmm(
 
 if __name__ == "__main__":
     
-    DIM = 5
+    DIM = 20
     MEANS_GMM = [
         [np.zeros(DIM), np.ones(DIM)*10, np.ones(DIM)*20],
     ]
