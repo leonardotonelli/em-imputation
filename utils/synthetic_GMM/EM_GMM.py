@@ -33,8 +33,8 @@ def initialize_parameters(X, y, n_components, random_state=42):
             pi[c] = len(X_c) / len(y[y != -1])
         else:
             # Fallback: Random initialization if no labels for this class
-            mu[c] = global_mean + np.random.randn(n_features) * 0.1
-            Sigma.append(global_cov + np.eye(n_features) * 1e-6)
+            mu[c] = global_mean 
+            Sigma.append(global_cov)
             
     # Normalize pi just in case
     pi = pi / np.sum(pi)
@@ -188,7 +188,7 @@ if __name__ == "__main__":
     
     # 2. Create Semi-Supervised Scenario (Mask 80% of labels)
     y_semi = y_true.copy()
-    mask = np.random.rand(len(y_semi)) < 1  # 80% missing
+    mask = np.random.rand(len(y_semi)) < 0.8 # 80% missing
     y_semi[mask] = -1  # -1 denotes unlabeled
     
     # 3. Run Algorithm

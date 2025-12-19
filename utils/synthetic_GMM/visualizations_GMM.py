@@ -496,7 +496,7 @@ def plot_sample_size_error_filtered_GMM(df, mechanism='MCAR', missingness_pct=0.
         'pi_error': 'EM',
         'rf_imputation_prop_error': 'RF',
         'knn_imputation_prop_error': 'KNN',
-        'mode_imputation_prop_error': 'Mode'
+        # 'mode_imputation_prop_error': 'Mode'
     }
     
     df_long = df.melt(
@@ -524,14 +524,14 @@ def plot_sample_size_error_filtered_GMM(df, mechanism='MCAR', missingness_pct=0.
         'EM': '#e74c3c',
         'RF': '#3498db',
         'KNN': '#2ecc71',
-        'Mode': '#f39c12'
+        # 'Mode': '#f39c12'
     }
     
     dashes = {
         'EM': '',
         'RF': '',
         'KNN': '',
-        'Mode': ''
+        # 'Mode': ''
     }
     
     sns.lineplot(
