@@ -263,16 +263,9 @@ def evaluate_imputers(X_pca, y_experts, y_groundtruth, n_components=2):
         results.append({
             'Imputer': name,
             'Accuracy': acc,
-            'Recall_Class_0': rec_class_0,
             'Recall_Class_1': rec_class_1,
             'Precision_Class_1': prec_class_1,
             'F1_Class_1': f1_class_1,
-            'TP': tp,
-            'FP': fp,
-            'TN': tn,
-            'FN': fn,
-            'Pi_Estimated': pi_est_1,
-            'Pi_Empirical': pi_empirical,
             'Pi_Diff_Class_1': pi_diff_class_1
         })
 
