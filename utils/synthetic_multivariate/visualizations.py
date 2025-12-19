@@ -183,8 +183,8 @@ def plot_error_comparison(df, mechanism='MCAR', figsize=(10, 6)):
     )
 
     ax.set_xlabel('Missingness Percentage (%)', fontsize=12)
-    ax.set_ylabel('Mean Absolute Error', fontsize=12)
-    ax.set_title(f'Estimation Error by Missingness Pattern\nMechanism: {mechanism}',
+    ax.set_ylabel('Mean Estimation Error ($||\hat{\mu} - \mu||_2$)', fontsize=12)
+    ax.set_title(f'MVN: Mean Vector Estimation Error vs Missingness Rate\nMechanism: {mechanism}',
                  fontsize=14, fontweight='bold')
     ax.legend(title='Method', loc='best', frameon=True)
 
@@ -248,8 +248,8 @@ def plot_time_comparison(df, mechanism='MCAR', figsize=(10, 6)):
     )
     
     ax.set_xlabel('Missingness Percentage (%)', fontsize=12)
-    ax.set_ylabel('Time (seconds)', fontsize=12)
-    ax.set_title(f'Computation Time by Missingness Pattern\nMechanism: {mechanism}', 
+    ax.set_ylabel('Execution Time (seconds)', fontsize=12)
+    ax.set_title(f'Computational Cost vs Missingness Rate\nMechanism: {mechanism}', 
                  fontsize=14, fontweight='bold')
     ax.legend(title='Method', loc='best', frameon=True)
     
@@ -330,8 +330,8 @@ def plot_sigma_error_comparison(df, mechanism='MCAR', figsize=(10, 6)):
     )
     
     ax.set_xlabel('Missingness Percentage (%)', fontsize=12)
-    ax.set_ylabel('Covariance Error', fontsize=12)
-    ax.set_title(f'Covariance Estimation Error\nMechanism: {mechanism}', 
+    ax.set_ylabel('Covariance Error (Frobenius Norm)', fontsize=12)
+    ax.set_title(f'MVN: Covariance Matrix Estimation Error\nMechanism: {mechanism}', 
                  fontsize=14, fontweight='bold')
     ax.legend(title='Method', loc='best', frameon=True)
     
@@ -493,9 +493,9 @@ def plot_sample_size_error(df, mechanism='MCAR', figsize=(10, 6)):
         err_kws={"capsize": 3}
     )
     
-    ax.set_xlabel('Sample Size', fontsize=12)
-    ax.set_ylabel('Mean Absolute Error', fontsize=12)
-    ax.set_title(f'Mean Error vs Sample Size\nMechanism: {mechanism}',
+    ax.set_xlabel('Sample Size ($N$)', fontsize=12)
+    ax.set_ylabel('Mean Estimation Error ($||\hat{\mu} - \mu||_2$)', fontsize=12)
+    ax.set_title(f'MVN: Asymptotic Estimation Error Analysis\nMechanism: {mechanism}',
                  fontsize=14, fontweight='bold')
     ax.legend(title='Method', loc='best', frameon=True)
     ax.grid(True, alpha=0.3)
@@ -898,16 +898,16 @@ def create_full_report(df, output_folder='tests'):
 
         # Sample size plots
         fig_sample_error = plot_sample_size_error(df, mechanism=mechanism)
-        fig_sample_error.savefig(f'{output_folder}\\{mechanism}\\sample_size_error_{mechanism}_gmm.png', dpi=300, bbox_inches='tight')
+        fig_sample_error.savefig(f'{output_folder}\\{mechanism}\\sample_size_error_{mechanism}.png', dpi=300, bbox_inches='tight')
         plt.close()
 
         # Sample size plots
         fig_sample_cov_error = plot_sample_size_cov_error(df, mechanism=mechanism)
-        fig_sample_cov_error.savefig(f'{output_folder}\\{mechanism}\\sample_size_cov_error_{mechanism}_gmm.png', dpi=300, bbox_inches='tight')
+        fig_sample_cov_error.savefig(f'{output_folder}\\{mechanism}\\sample_size_cov_error_{mechanism}.png', dpi=300, bbox_inches='tight')
         plt.close()
 
         fig_sample_time = plot_sample_size_time(df, mechanism=mechanism)
-        fig_sample_time.savefig(f'{output_folder}\\{mechanism}\\sample_size_time_{mechanism}_gmm.png', dpi=300, bbox_inches='tight')
+        fig_sample_time.savefig(f'{output_folder}\\{mechanism}\\sample_size_time_{mechanism}.png', dpi=300, bbox_inches='tight')
         plt.close()
     
     # Heatmap
@@ -920,9 +920,9 @@ def create_full_report(df, output_folder='tests'):
     print("- error_comparison_[MCAR/MAR/MNAR].png")
     print("- time_comparison_[MCAR/MAR/MNAR].png")
     print("- sigma_error_[MCAR/MAR/MNAR].png")
-    print("- sample_size_error_[MCAR/MAR/MNAR]_gmm.png")
-    print("- sample_size_cov_error_[MCAR/MAR/MNAR]_gmm.png")
-    print("- sample_size_time_[MCAR/MAR/MNAR]_gmm.png")
+    print("- sample_size_error_[MCAR/MAR/MNAR].png")
+    print("- sample_size_cov_error_[MCAR/MAR/MNAR].png")
+    print("- sample_size_time_[MCAR/MAR/MNAR].png")
     print("- error_heatmap_all.png")
 
 def plot_sample_size_error_filtered(df, mechanism='MCAR', missingness_pct=0.3, figsize=(10, 6)):
@@ -1180,11 +1180,98 @@ def plot_time_per_iteration(df,
     plt.tight_layout()
     return fig
 
-
-# Main execution
-if __name__ == "__main__":
-    # Load data
-    df = pd.read_csv("tests\\simulation_results.csv")    
-    # Generate all visualizations
+def create_correlation_report(df, output_folder='plots'):
+    """
+    Generates specific comparison plots to analyze the impact of correlation 
+    on the imputation error (Independence vs Strong Correlation).
+    """
+    os.makedirs(output_folder, exist_ok=True)
     
-    create_full_report(df, output_folder='tests')
+    # --- Plot 1: Independence (Covariance Index 0) ---
+    # In this scenario (Identity Matrix), EM should not perform significantly better than Mean
+    fig_indep = plot_method_comparison_flexible(
+        df,
+        x_axis='missingness_pct',
+        y_axis='error',
+        mechanism='MAR',      # We compare under MAR
+        cov_idx=0,            # Index 0 = Independence (from main.py config)
+        methods=['EM', 'MICE', 'KNN', 'Mean'],
+        figsize=(8, 6)
+    )
+    
+    if fig_indep:
+        # Overwrite title and labels for academic clarity
+        ax = fig_indep.axes[0]
+        
+        # UPDATED TITLE: Specifies Independence and Sigma = I
+        ax.set_title("Impact of Correlation: Independence ($\Sigma = I$)\nMechanism: MAR", 
+                     fontweight='bold', fontsize=14)
+        
+        # UPDATED Y-LABEL: Specifies the error formula
+        ax.set_ylabel('Mean Estimation Error ($||\hat{\mu} - \mu||_2$)', fontsize=12)
+        
+        # Save
+        save_path = os.path.join(output_folder, 'error_independence_MAR.png')
+        fig_indep.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.close(fig_indep)
+        print(f"Saved: {save_path}")
+
+    # --- Plot 2: Strong Correlation (Covariance Index 2) ---
+    # In this scenario (rho=0.9), EM should significantly outperform Mean Imputation
+    fig_strong = plot_method_comparison_flexible(
+        df,
+        x_axis='missingness_pct',
+        y_axis='error',
+        mechanism='MAR',
+        cov_idx=2,            # Index 2 = Strong Correlation (from main.py config)
+        methods=['EM', 'MICE', 'KNN', 'Mean'],
+        figsize=(8, 6)
+    )
+    
+    if fig_strong:
+        # Overwrite title and labels for academic clarity
+        ax = fig_strong.axes[0]
+        
+        # UPDATED TITLE: Specifies Rho = 0.9
+        ax.set_title(r"Impact of Correlation: Strong Correlation ($\rho = 0.9$)" + "\nMechanism: MAR", 
+                     fontweight='bold', fontsize=14)
+        
+        # UPDATED Y-LABEL
+        ax.set_ylabel('Mean Estimation Error ($||\hat{\mu} - \mu||_2$)', fontsize=12)
+        
+        # Save
+        save_path = os.path.join(output_folder, 'error_strong_correlation_MAR.png')
+        fig_strong.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.close(fig_strong)
+        print(f"Saved: {save_path}")
+
+
+# --- MAIN EXECUTION ---
+if __name__ == "__main__":
+    import os
+    
+    # 1. Define the correct path to your results
+    # We check the standard results folder first
+    results_path = os.path.join("results", "synthetic_multivariate", "simulation_results.csv")
+    output_dir = os.path.join("plots", "synthetic_multivariate")
+    
+    # Fallback: check 'tests' folder if main results don't exist
+    if not os.path.exists(results_path):
+        results_path = os.path.join("tests", "simulation_results.csv")
+        output_dir = "tests"
+
+    # 2. Generate Plots
+    if os.path.exists(results_path):
+        print(f"Loading data from: {results_path}")
+        df = pd.read_csv(results_path)
+        
+        print("Generating Standard MVN Report...")
+        create_full_report(df, output_folder=output_dir)
+        
+        print("Generating Correlation Analysis (Independence vs Strong)...")
+        create_correlation_report(df, output_folder=output_dir)
+        
+        print(f"\nSuccess! All MVN plots are saved in: {output_dir}")
+    else:
+        print(f"ERROR: Could not find results file at: {results_path}")
+        print("Please ensure you have run the MVN simulation in main.py first.")
