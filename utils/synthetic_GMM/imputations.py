@@ -3,32 +3,14 @@ import pandas as pd
 from sklearn.impute import SimpleImputer
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import KFold
-import miceforest as mf
 from time import time
-from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.impute import KNNImputer
 
 
 def mode_imputation_labels(data, label_column_index, true_proportions):
     """
     Impute missing categorical labels using mode imputation.
-    
-    Parameters:
-    -----------
-    data : array-like
-        Full dataset with missing values (features + label column)
-    label_column_index : int
-        Index of the label column in the dataset
-    true_proportions : dict or array-like
-        True class mixing proportions. If dict: {class_label: proportion}
-        If array: proportions in order of sorted unique classes
-    
-    Returns:
-    --------
-    proportion_error : float
-        L2 norm of difference between true and imputed class proportions
-    imputed_data : array-like
-        Complete dataset after label imputation
     """
     start = time()
     data = np.array(data)
@@ -72,32 +54,7 @@ def mode_imputation_labels(data, label_column_index, true_proportions):
 def knn_imputation_labels(data, label_column_index, true_proportions, k=5):
     """
     Impute missing categorical labels using KNN Classifier based on features.
-    Uses average predicted probabilities from the classifier.
-    
-    Parameters:
-    -----------
-    data : array-like
-        Full dataset with missing values (features + label column)
-    label_column_index : int
-        Index of the label column in the dataset
-    true_proportions : dict or array-like
-        True class mixing proportions. If dict: {class_label: proportion}
-        If array: proportions in order of sorted unique classes
-    k : int
-        Number of neighbors for KNN classification
-    
-    Returns:
-    --------
-    proportion_error : float
-        L2 norm of difference between true and imputed class proportions
-    execution_time : float
-        Time taken for imputation
     """
-    from sklearn.neighbors import KNeighborsClassifier
-    from sklearn.impute import KNNImputer
-    import numpy as np
-    from time import time
-    
     start = time()
     data = np.array(data)
     
@@ -115,22 +72,17 @@ def knn_imputation_labels(data, label_column_index, true_proportions, k=5):
         features = feature_imputer.fit_transform(features)
     
     # Train KNN classifier on labeled data
-    if has_label_mask.sum() > 0:
+    if has_label_mask.sum() > 0:  # Check if we have any labeled data
         knn = KNeighborsClassifier(n_neighbors=k)
         knn.fit(features[has_label_mask], labels[has_label_mask])
         
-        # Get predicted probabilities for ALL samples
-        all_probs = knn.predict_proba(features)
-        
-        # Average probabilities across all samples
-        imputed_proportions = np.mean(all_probs, axis=0)
-        
-        # Get class labels from the classifier
-        unique_classes = knn.classes_
-    else:
-        # No labeled data - cannot train classifier
-        unique_classes = np.unique(labels[~np.isnan(labels)])
-        imputed_proportions = np.ones(len(unique_classes)) / len(unique_classes)
+        # Predict missing labels
+        if missing_mask.sum() > 0:
+            labels[missing_mask] = knn.predict(features[missing_mask])
+    
+    # Compute class proportions from imputed labels
+    unique_classes, counts = np.unique(labels, return_counts=True)
+    imputed_proportions = counts / len(labels)
     
     # Convert true_proportions to array format
     if isinstance(true_proportions, dict):
@@ -138,11 +90,13 @@ def knn_imputation_labels(data, label_column_index, true_proportions, k=5):
     else:
         true_prop_array = np.array(true_proportions)
     
-    # Ensure same length
+    # Ensure same length (in case of missing classes in imputed data)
     if len(true_prop_array) > len(imputed_proportions):
+        # Pad imputed proportions with zeros for missing classes
         imputed_proportions = np.pad(imputed_proportions, 
                                      (0, len(true_prop_array) - len(imputed_proportions)))
     elif len(imputed_proportions) > len(true_prop_array):
+        # Pad true proportions with zeros
         true_prop_array = np.pad(true_prop_array, 
                                  (0, len(imputed_proportions) - len(true_prop_array)))
     
@@ -157,24 +111,6 @@ def select_k_cv(data, label_col, k_values=None, n_folds=10):
     """
     Select optimal k for KNN classification using cross-validation.
     Only uses observations with non-missing labels for CV.
-    
-    Parameters:
-    -----------
-    data : array-like or DataFrame
-        Complete dataset (features + label column)
-    label_col : int or str
-        Index or name of the label column
-    k_values : list or None
-        List of k values to test. If None, defaults to [1, 3, 5, 7, 9, 11, 15, 20]
-    n_folds : int
-        Number of folds for cross-validation (default: 10)
-    
-    Returns:
-    --------
-    best_k : int
-        Optimal number of neighbors that minimizes misclassification error
-    results : dict
-        Dictionary with k values as keys and average misclassification error as values
     """
     if k_values is None:
         k_values = [1, 3, 5, 7, 9, 11, 15, 20]
@@ -230,28 +166,6 @@ def select_k_cv(data, label_col, k_values=None, n_folds=10):
 def rf_imputation_labels(data, label_column_index, true_proportions, n_estimators=100, random_state=42):
     """
     Impute missing categorical labels using Random Forest Classifier based on features.
-    Uses average predicted probabilities from the classifier.
-    
-    Parameters:
-    -----------
-    data : array-like
-        Full dataset with missing values (features + label column)
-    label_column_index : int
-        Index of the label column in the dataset
-    true_proportions : dict or array-like
-        True class mixing proportions. If dict: {class_label: proportion}
-        If array: proportions in order of sorted unique classes
-    n_estimators : int
-        Number of trees in the random forest (default: 100)
-    random_state : int
-        Random state for reproducibility (default: 42)
-    
-    Returns:
-    --------
-    proportion_error : float
-        L2 norm of difference between true and imputed class proportions
-    execution_time : float
-        Time taken for imputation
     """
     
     start = time()
@@ -265,32 +179,26 @@ def rf_imputation_labels(data, label_column_index, true_proportions, n_estimator
     missing_mask = np.isnan(labels)
     has_label_mask = ~missing_mask
     
-    # If there are missing values in features, impute them first
+    # If there are missing values in features, impute them first (simple mean/median)
     if np.isnan(features).any():
         feature_imputer = SimpleImputer(strategy='mean')
         features = feature_imputer.fit_transform(features)
     
     # Train Random Forest classifier on labeled data
-    if has_label_mask.sum() > 0:
+    if has_label_mask.sum() > 0 and missing_mask.sum() > 0:
         rf = RandomForestClassifier(
             n_estimators=n_estimators, 
             random_state=random_state,
-            n_jobs=-1
+            n_jobs=-1  # Use all available cores
         )
         rf.fit(features[has_label_mask], labels[has_label_mask])
         
-        # Get predicted probabilities for ALL samples
-        all_probs = rf.predict_proba(features)
-        
-        # Average probabilities across all samples
-        imputed_proportions = np.mean(all_probs, axis=0)
-        
-        # Get class labels from the classifier
-        unique_classes = rf.classes_
-    else:
-        # No labeled data - cannot train classifier
-        unique_classes = np.unique(labels[~np.isnan(labels)])
-        imputed_proportions = np.ones(len(unique_classes)) / len(unique_classes)
+        # Predict missing labels
+        labels[missing_mask] = rf.predict(features[missing_mask])
+    
+    # Compute class proportions from imputed labels
+    unique_classes, counts = np.unique(labels[~np.isnan(labels)], return_counts=True)
+    imputed_proportions = counts / len(labels[~np.isnan(labels)])
     
     # Convert true_proportions to array format
     if isinstance(true_proportions, dict):
@@ -298,7 +206,7 @@ def rf_imputation_labels(data, label_column_index, true_proportions, n_estimator
     else:
         true_prop_array = np.array(true_proportions)
     
-    # Ensure same length
+    # Ensure same length (in case of missing classes in imputed data)
     if len(true_prop_array) > len(imputed_proportions):
         imputed_proportions = np.pad(imputed_proportions, 
                                      (0, len(true_prop_array) - len(imputed_proportions)))
@@ -311,6 +219,7 @@ def rf_imputation_labels(data, label_column_index, true_proportions, n_estimator
     end = time()
     
     return proportion_error, end - start
+    
 
 if __name__ == "__main__":
     # True class proportions (example for 3 classes)
@@ -323,38 +232,18 @@ if __name__ == "__main__":
     # Specify which column contains the labels (e.g., last column)
     label_column_index = -1
     
-    # Optional: Select best k using cross-validation for KNN
-    # Note: You would need to adapt select_k_cv for label imputation as well
-    # best_k = select_k_cv_labels(data_array, label_column_index, true_proportions, k_values=None, n_folds=10)
-    # For now, use a default k value
+    # Select best k using cross-validation for KNN
     best_k = select_k_cv(data_array, label_column_index, k_values=None, n_folds=10)
     print(f"Using k={best_k} for KNN imputation")
     
     # Perform different imputation methods
     mode_err, mode_time = mode_imputation_labels(data_array, label_column_index, true_proportions)
     knn_err, knn_time = knn_imputation_labels(data_array, label_column_index, true_proportions, k=best_k)
-    mice_err, mice_time = rf_imputation_labels(data_array, label_column_index, true_proportions)
+    rf_err, rf_time = rf_imputation_labels(data_array, label_column_index, true_proportions)
     
     # Print results
     print("\n=== Label Imputation Results ===")
     print(f"Mode Imputation - Proportion Error: {mode_err:.6f}")
     print(f"KNN Imputation (k={best_k}) - Proportion Error: {knn_err:.6f}")
-    print(f"MICE Imputation - Proportion Error: {mice_err:.6f}")
+    print(f"MICE Imputation - Proportion Error: {rf_err:.6f}")
     
-    # # Optional: Display imputed class distributions
-    # print("\n=== Imputed Class Distributions ===")
-    # for method_name in [("Mode"), ("KNN"), ("MICE")]:
-    #     labels = imputed_data[:, label_column_index]
-    #     unique, counts = np.unique(labels, return_counts=True)
-    #     proportions = counts / len(labels)
-    #     print(f"\n{method_name}:")
-    #     for cls, prop in zip(unique, proportions):
-    #         print(f"  Class {cls}: {prop:.4f}")
-    
-    # print("\n=== True Proportions ===")
-    # if isinstance(true_proportions, dict):
-    #     for cls, prop in true_proportions.items():
-    #         print(f"  Class {cls}: {prop:.4f}")
-    # else:
-    #     for i, prop in enumerate(true_proportions):
-    #         print(f"  Class {i}: {prop:.4f}")

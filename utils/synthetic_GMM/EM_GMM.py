@@ -44,16 +44,11 @@ def initialize_parameters(X, y, n_components, random_state=42):
 def e_step_semi_supervised(X, y, pi, mu, Sigma):
     """
     E-Step: Estimate responsibilities (r).
-    
-    Per Section 2.1 of the PDF:
-    - For unlabeled examples: Calculate probability p(y=c | x, theta)[cite: 39].
-    - For labeled examples: The responsibility is fixed (1.0 for true class).
     """
     N, K = len(X), len(pi)
     responsibilities = np.zeros((N, K))
     
     # 1. Calculate unnormalized posteriors for ALL points first
-    # This corresponds to p(y, x | theta) in the numerator of [cite: 39]
     for k in range(K):
         # We use a small reg to prevent numerical errors
         try:
@@ -62,8 +57,7 @@ def e_step_semi_supervised(X, y, pi, mu, Sigma):
             # Fallback for singular matrices
             responsibilities[:, k] = pi[k] * multivariate_normal.pdf(X, mean=mu[k], cov=Sigma[k] + np.eye(X.shape[1])*1e-5)
 
-    # Normalize to get probabilities (Softmax logic)
-    # This matches the denominator in [cite: 39]
+    # Normalize to get probabilities 
     row_sums = responsibilities.sum(axis=1)[:, np.newaxis]
     # Avoid division by zero
     row_sums[row_sums == 0] = 1e-10
@@ -83,20 +77,16 @@ def e_step_semi_supervised(X, y, pi, mu, Sigma):
 def m_step_semi_supervised(X, responsibilities):
     """
     M-Step: Update parameters maximize expected log-likelihood.
-    
-    Per Section 2.2 and 3.2:
-    - Update is a weighted version of the supervised problem[cite: 54].
-    - Weights are the responsibilities computed in E-step.
     """
     N, D = X.shape
     K = responsibilities.shape[1]
     
     # 1. Effective number of points in each cluster (N_c)
-    # Sum of responsibilities for class c [cite: 58]
+    # Sum of responsibilities for class c 
     N_c = responsibilities.sum(axis=0)
     
     # 2. Update Priors (pi)
-    # count / total_samples [cite: 57]
+    # count / total_samples 
     pi_new = N_c / N
     
     mu_new = np.zeros((K, D))
@@ -107,13 +97,13 @@ def m_step_semi_supervised(X, responsibilities):
         total_weight = N_c[k] if N_c[k] > 1e-10 else 1.0
         
         # 3. Update Means (mu)
-        # Weighted sum of x / sum of weights [cite: 139]
+        # Weighted sum of x / sum of weights 
         # Note: For labeled data, weight is 1.0; for unlabeled, it is r_c.
         mu_k = np.sum(responsibilities[:, k].reshape(-1, 1) * X, axis=0) / total_weight
         mu_new[k] = mu_k
         
         # 4. Update Covariances (Sigma)
-        # Weighted sum of (x-mu)(x-mu)^T [cite: 143]
+        # Weighted sum of (x-mu)(x-mu)^T 
         diff = X - mu_k
         # Efficient weighted covariance calculation:
         sigma_k = np.dot((responsibilities[:, k].reshape(-1, 1) * diff).T, diff) / total_weight
@@ -127,7 +117,6 @@ def m_step_semi_supervised(X, responsibilities):
 def compute_log_likelihood(X, pi, mu, Sigma):
     """
     Compute the observed data log-likelihood to check convergence.
-    This corresponds to eqn (***) logic in Section 2.3, summing over marginals.
     """
     N, K = len(X), len(pi)
     likelihoods = np.zeros((N, K))
@@ -144,10 +133,6 @@ def compute_log_likelihood(X, pi, mu, Sigma):
 def em_semi_supervised(X, y, n_components, max_iter=100, tol=1e-4, verbose=False):
     """
     Main Loop for Semi-Supervised EM.
-    
-    Parameters:
-    - X: Features (N x D)
-    - y: Labels (N,). Use NaN for unlabeled data.
     """
     if verbose:
         print("--- Starting Semi-Supervised EM ---")

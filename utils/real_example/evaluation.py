@@ -2,17 +2,87 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
-from time import time
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, confusion_matrix
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.impute import SimpleImputer, KNNImputer 
-# Ensure the iterative imputer is available
-from sklearn.experimental import enable_iterative_imputer
-from sklearn.impute import IterativeImputer 
-
 from utils.synthetic_GMM.EM_GMM import em_semi_supervised, e_step_semi_supervised
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import scipy.stats as stats
+import pingouin as pg
+from scipy.spatial.distance import mahalanobis
+
+def test_gmm_normality_assumptions(X, labels, alpha=0.05):
+    """
+    Performs Henze-Zirkler MVN test and generates Q-Q plots for each GMM cluster.
+    """
+    unique_clusters = np.unique(labels)
+    mvn_results = []
+
+    print("--- Multivariate Normality Diagnostic ---")
+    
+    for cluster_id in unique_clusters:
+        # Extract data for this specific cluster
+        cluster_data = X[labels == cluster_id]
+        n_samples, n_dims = cluster_data.shape
+        
+        print(f"\nAnalyzing Cluster {cluster_id} (n={n_samples})")
+        
+        # 1. Statistical Test: Henze-Zirkler
+        # Note: HZ test requires at least more samples than dimensions
+        if n_samples > n_dims + 1:
+            hz_result = pg.multivariate_normality(cluster_data, alpha=alpha)
+            is_normal = hz_result.normal
+            p_val = hz_result.pval
+        else:
+            is_normal = False
+            p_val = np.nan
+            print(f"Warning: Cluster {cluster_id} has too few samples for HZ test.")
+
+        mvn_results.append({
+            'Cluster': cluster_id,
+            'Samples': n_samples,
+            'HZ_P-Value': p_val,
+            'Is_Normal': is_normal
+        })
+
+        # 2. Visual Check: Mahalanobis Distance Q-Q Plot
+        # Calculate Mahalanobis Distance for each point in the cluster
+        mu = np.mean(cluster_data, axis=0)
+        try:
+            cov = np.cov(cluster_data, rowvar=False)
+            inv_cov = np.linalg.inv(cov)
+            
+            # Compute squared Mahalanobis distances
+            d2 = []
+            for i in range(n_samples):
+                diff = cluster_data[i] - mu
+                d2.append(diff.dot(inv_cov).dot(diff))
+            
+            d2 = np.sort(d2)
+            # Theoretical Quantiles for Chi-Square distribution (df = n_dims)
+            theoretical_quantiles = stats.chi2.ppf(np.linspace(0.01, 0.99, n_samples), df=n_dims)
+
+            # Plotting
+            plt.figure(figsize=(6, 5))
+            plt.scatter(theoretical_quantiles, d2, alpha=0.6, color='teal', label='Data Points')
+            
+            # Add 45-degree reference line
+            max_val = max(max(d2), max(theoretical_quantiles))
+            plt.plot([0, max_val], [0, max_val], color='red', linestyle='--', label='Theoretical MVN')
+            
+            plt.title(f"Cluster {cluster_id}: Chi-Square Q-Q Plot\n(HZ p-val: {p_val:.4f})")
+            plt.xlabel("Theoretical Chi-Square Quantiles")
+            plt.ylabel("Observed Mahalanobis Distances ($D^2$)")
+            plt.legend()
+            plt.grid(True, alpha=0.3)
+            plt.show()
+
+        except np.linalg.LinAlgError:
+            print(f"Error: Covariance matrix for Cluster {cluster_id} is singular.")
+
+    return pd.DataFrame(mvn_results)
 
 
 def _mask_labels(y, missing_pct, random_state=None):
@@ -68,15 +138,10 @@ def _knn_impute(X, labels_masked, k=5):
     labels[mask] = knn.predict(X[mask])
     
     # Pi estimated: use the predicted probabilities from KNN
-    proba = knn.predict_proba(X)
-    # proba[:, 1] gives probability of class 1
-    if proba.shape[1] == 2:
-        pi_est = np.mean(proba[:, 1])
-    else:
-        # Fallback if only one class in training data
-        pi_est = np.mean(labels == 1)
+    unique_classes, counts = np.unique(labels, return_counts=True)
+    imputed_proportions = counts / len(labels)
     
-    return labels, pi_est
+    return labels, imputed_proportions[1]
 
 
 def _rf_impute(X, labels_masked, n_estimators=100, random_state=42):
@@ -96,16 +161,10 @@ def _rf_impute(X, labels_masked, n_estimators=100, random_state=42):
     rf.fit(X[~mask], labels[~mask])
     labels[mask] = rf.predict(X[mask])
     
-    # Pi estimated: use the predicted probabilities from Random Forest
-    proba = rf.predict_proba(X)
-    # proba[:, 1] gives probability of class 1
-    if proba.shape[1] == 2:
-        pi_est = np.mean(proba[:, 1])
-    else:
-        # Fallback if only one class in training data
-        pi_est = np.mean(labels == 1)
+    unique_classes, counts = np.unique(labels[~np.isnan(labels)], return_counts=True)
+    imputed_proportions = counts / len(labels[~np.isnan(labels)])
 
-    return labels, pi_est
+    return labels, imputed_proportions[1]
 
 
 def _em_impute(X, labels_masked, n_components=2, max_iter=200, tol=1e-4, verbose=False):
@@ -155,18 +214,7 @@ def evaluate_imputers(X_pca, y_experts, y_groundtruth, n_components=2):
     """
     Imputes missing values in y_experts using various methods (Mode, KNN, RF, EM),
     evaluates the results against y_groundtruth, and computes the difference 
-    in class proportions (pi) using each algorithm's internal estimate.
-
-    Args:
-        X_pca (np.array): The PCA-transformed feature matrix (auxiliary features).
-        y_experts (np.array): The expert labels with missing values (e.g., NaN).
-        y_groundtruth (np.array): The ground truth labels.
-        n_components (int): Number of components for EM-GMM imputation.
-
-    Returns:
-        pd.DataFrame: A DataFrame with Accuracy, Recall, and the difference 
-                      in estimated vs. true class proportions for each imputer.
-    """
+    in class proportions (pi) using each algorithm's internal estimate."""
     
     # Ensure ground truth is integer type
     y_true = y_groundtruth.astype(int)

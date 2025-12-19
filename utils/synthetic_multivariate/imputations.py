@@ -49,24 +49,6 @@ def mode_imputation(data, means, cov_matrix):
 def knn_imputation(data, means, cov_matrix, k=5):
     """
     Impute missing values using KNN and compute errors.
-    
-    Parameters:
-    -----------
-    data : array-like
-        Data with missing values
-    means : array-like
-        True mean values
-    cov_matrix : array-like
-        True covariance matrix
-    n_neighbors : int
-        Number of neighbors for KNN imputation
-    
-    Returns:
-    --------
-    mean_error : float
-        Frobenius norm of difference between true and computed means
-    cov_error : float
-        Frobenius norm of difference between true and computed covariance
     """
     start = time()
     imputer = KNNImputer(n_neighbors=k)
@@ -84,24 +66,6 @@ def mice_imputation(data, means, cov_matrix, iterations=5):
     """
     Impute missing values using MICE (Multivariate Imputation by Chained Equations)
     via miceforest and compute errors.
-    
-    Parameters:
-    -----------
-    data : array-like
-        Data with missing values
-    means : array-like
-        True mean values
-    cov_matrix : array-like
-        True covariance matrix
-    iterations : int
-        Number of iterations for MICE algorithm (default: 5)
-    
-    Returns:
-    --------
-    mean_error : float
-        Frobenius norm of difference between true and computed means
-    cov_error : float
-        Frobenius norm of difference between true and computed covariance
     """
     start = time()
     # Convert to pandas DataFrame if numpy array
@@ -139,7 +103,10 @@ def mice_imputation(data, means, cov_matrix, iterations=5):
     end = time()
     return mean_error, cov_error, end - start
 
+
+
 if __name__ == "__main__":
+
     means = np.array([50, 100, 25, 75])
     cov_matrix = np.array([
             [10,  5,  2,  3],
@@ -147,7 +114,6 @@ if __name__ == "__main__":
             [ 2,  4, 15,  1],
             [ 3,  6,  1, 12]
         ])
-
     
     df = pd.read_csv("synthetic_multivariate\\tests\\MNAR_missing_30pct.csv", skiprows=0)
     data_array = df.to_numpy()

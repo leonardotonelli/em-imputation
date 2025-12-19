@@ -31,25 +31,6 @@ def simulation_study_multivariate(
     Comprehensive simulation study for EM algorithm with missing data.
     Uses generate_multivariate_gaussian() and inject_missingness() to create data,
     and em_multivariate_gaussian() to fit the model.
-    
-    Parameters:
-    -----------
-    path : str
-        Directory path to save datasets and results
-    means_to_test : list of arrays/lists
-        List of mean vectors to test
-    cov_to_test : list of arrays
-        List of covariance matrices to test
-    n_samples_to_test : list of int
-        List of sample sizes to test
-    percentages_to_test : list of float
-        List of missingness percentages to test (0 to 1)
-    max_iter : int
-        Maximum iterations for EM algorithm
-    tol : float
-        Convergence tolerance for EM algorithm
-    random_state : int
-        Random seed for reproducibility
     """
     
     # Create output directory

@@ -13,13 +13,6 @@ plt.rcParams['font.family'] = 'serif'
 def plot_error_heatmap(df, figsize=(12, 4)):
     """
     Create heatmap showing average error across all mechanisms.
-    
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Simulation results
-    figsize : tuple
-        Figure size
     """
     df_error = prepare_error_data(df)
     
@@ -346,15 +339,6 @@ def prepare_time_data(df):
 def plot_sample_size_error(df, mechanism='MCAR', figsize=(10, 6)):
     """
     Plot proportion error vs sample size comparison.
-    
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Simulation results
-    mechanism : str
-        Missingness mechanism ('MCAR', 'MAR', or 'MNAR')
-    figsize : tuple
-        Figure size
     """
     # Prepare error data
     error_cols = {
@@ -431,15 +415,6 @@ def plot_sample_size_error(df, mechanism='MCAR', figsize=(10, 6)):
 def plot_sample_size_time(df, mechanism='MCAR', figsize=(10, 6)):
     """
     Plot computation time vs sample size comparison.
-    
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Simulation results
-    mechanism : str
-        Missingness mechanism ('MCAR', 'MAR', or 'MNAR')
-    figsize : tuple
-        Figure size
     """
     # Prepare time data
     time_cols = {
@@ -515,17 +490,6 @@ def plot_sample_size_time(df, mechanism='MCAR', figsize=(10, 6)):
 def plot_sample_size_error_filtered_GMM(df, mechanism='MCAR', missingness_pct=0.3, figsize=(10, 6)):
     """ 
     Plot proportion error vs sample size for a specific missingness percentage and mechanism.
-    
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Simulation results for GMM
-    mechanism : str
-        Missingness mechanism ('MCAR', 'MAR', or 'MNAR')
-    missingness_pct : float
-        Missingness percentage to filter for (e.g., 0.3 for 30%)
-    figsize : tuple
-        Figure size
     """
     # Prepare error data
     error_cols = {
@@ -610,32 +574,6 @@ def plot_time_per_iteration_GMM(df,
                                 figsize=(10, 6)):
     """
     Plot time per iteration for GMM with flexible filtering options.
-    
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Simulation results for GMM
-    mechanism : str or None
-        Missingness mechanism ('MCAR', 'MAR', or 'MNAR'). If None, plots all mechanisms.
-    config_idx : int or None
-        Configuration index to filter. If None, includes all.
-    mean_idx : int or None
-        Mean configuration index to filter. If None, includes all.
-    cov_idx : int or None
-        Covariance configuration index to filter. If None, includes all.
-    weight_idx : int or None
-        Weight configuration index to filter. If None, includes all.
-    n_components : int or None
-        Number of GMM components to filter. If None, includes all.
-    n_samples : int or None
-        Sample size to filter. If None, includes all (used when x_axis='missingness_pct').
-    missingness_pct : float or None
-        Missingness percentage to filter (e.g., 0.3 for 30%). If None, includes all 
-        (used when x_axis='n_samples').
-    x_axis : str
-        What to plot on x-axis: 'n_samples' or 'missingness_pct'
-    figsize : tuple
-        Figure size
     """
     # Start with full dataframe
     data = df.copy()
@@ -803,51 +741,6 @@ def plot_GMM_flexible(df,
                      figsize=(10, 6)):
     """
     Flexible plotting function for GMM results with customizable x and y axes.
-    
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Simulation results for GMM
-    x_axis : str
-        Column name for x-axis. Common options:
-        - 'n_samples': Sample size
-        - 'missingness_pct': Missingness percentage (target)
-        - 'actual_missingness_pct': Actual missingness percentage achieved
-        - 'n_components': Number of GMM components
-        - 'mechanism': Missingness mechanism
-    y_axis : str
-        Column name for y-axis. Common options:
-        - 'time_per_iteration': Average time per EM iteration
-        - 'convergence_time': Total EM computation time
-        - 'pi_error': Error in component weights estimation
-    mechanism : str or None
-        Missingness mechanism ('MCAR', 'MAR', or 'MNAR'). If None, includes all.
-    config_idx : int or None
-        Configuration index to filter. If None, includes all.
-    mean_idx : int or None
-        Mean configuration index to filter. If None, includes all.
-    cov_idx : int or None
-        Covariance configuration index to filter. If None, includes all.
-    weight_idx : int or None
-        Weight configuration index to filter. If None, includes all.
-    n_components : int or None
-        Number of GMM components to filter. If None, includes all.
-    n_samples : int or None
-        Sample size to filter. If None, includes all.
-    missingness_pct : float or None
-        Missingness percentage to filter (e.g., 0.3 for 30%). If None, includes all.
-    hue : str or None
-        Column name to use for color grouping. Common options:
-        - 'mechanism': Color by missingness mechanism
-        - 'n_components': Color by number of components
-        - None: Single color plot
-    figsize : tuple
-        Figure size
-        
-    Returns:
-    --------
-    matplotlib.figure.Figure or None
-        The generated figure, or None if no data matches filters
     """
     # Start with full dataframe
     data = df.copy()
@@ -1008,19 +901,6 @@ def plot_GMM_flexible(df,
 def create_full_report_gmm(df, output_folder='tests'):
     """
     Generate a complete set of visualization reports for GMM missing data imputation analysis.
-    
-    Parameters:
-    -----------
-    df : pandas.DataFrame
-        DataFrame containing the results with columns for mechanism, method, 
-        missing_rate, proportion_error, computation_time, etc.
-    output_folder : str, optional
-        Base directory for saving visualizations (default: 'tests')
-    
-    Returns:
-    --------
-    None
-        Saves all visualization files to the specified directory structure
     """
     import os
     

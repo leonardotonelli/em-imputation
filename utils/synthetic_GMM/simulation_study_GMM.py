@@ -28,29 +28,6 @@ def simulation_study_gmm(
 ):
     """
     Comprehensive simulation study for EM algorithm on GMM with missing class labels.
-    
-    Parameters:
-    -----------
-    result_path : str
-        Directory path to save results
-    data_path : str
-        Directory path to save datasets
-    gmm_configs : list of dict
-        List of GMM configurations, each dict contains:
-        - 'n_components': int
-        - 'means': list of arrays
-        - 'cov_matrices': list of arrays
-        - 'weights': list of floats
-    n_samples_to_test : list of int
-        List of sample sizes to test
-    percentages_to_test : list of float
-        List of missingness percentages for class variable (0 to 1)
-    max_iter : int
-        Maximum iterations for EM algorithm
-    tol : float
-        Convergence tolerance for EM algorithm
-    random_state : int
-        Random seed for reproducibility
     """
     
     Path(result_path).mkdir(parents=True, exist_ok=True)
