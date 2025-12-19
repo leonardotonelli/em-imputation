@@ -6,6 +6,7 @@ import os
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=SyntaxWarning)
 
 
 # Set style for academic plots
@@ -176,7 +177,7 @@ def plot_error_comparison(df, mechanism='MCAR', figsize=(10, 6)):
     )
 
     ax.set_xlabel('Missingness Percentage (%)', fontsize=12)
-    ax.set_ylabel('Mean Estimation Error ($||\hat{\mu} - \mu||_2$)', fontsize=12)
+    ax.set_ylabel(r'Mean Estimation Error ($||\hat{\mu} - \mu||_2$)', fontsize=12)
     ax.set_title(f'MVN: Mean Vector Estimation Error vs Missingness Rate\nMechanism: {mechanism}',
                  fontsize=14, fontweight='bold')
     ax.legend(title='Method', loc='best', frameon=True)
@@ -368,17 +369,17 @@ def plot_sample_size_cov_error(df, mechanism='MCAR', figsize=(10, 6)):
         markers=True,
         dashes=dashes,
         palette=palette,
-        err_style='bars',
-        errorbar='se',
+        # err_style='bars',
+        errorbar=None,
         ax=ax,
         linewidth=2,
         markersize=8,
-        err_kws={"capsize": 3}
+        # err_kws={"capsize": 3}
     )
     
     ax.set_xlabel('Sample Size', fontsize=12)
-    ax.set_ylabel('Mean Absolute Error', fontsize=12)
-    ax.set_title(f'Mean Error vs Sample Size\nMechanism: {mechanism}',
+    ax.set_ylabel('Covariance Error (Frobenius Norm)', fontsize=12)
+    ax.set_title(f'MVN: Covariance Matrix Estimation Error\nMechanism: {mechanism}',
                  fontsize=14, fontweight='bold')
     ax.legend(title='Method', loc='best', frameon=True)
     ax.grid(True, alpha=0.3)
@@ -436,22 +437,21 @@ def plot_sample_size_error(df, mechanism='MCAR', figsize=(10, 6)):
     sns.lineplot(
         data=data_dodged,
         x=x_dodged,
-        y='error',
-        hue='method',
+        y='error',        hue='method',
         style='method',
         markers=True,
         dashes=dashes,
         palette=palette,
-        err_style='bars',
-        errorbar='se',
+        # err_style='bars',
+        errorbar=None,
         ax=ax,
         linewidth=2,
         markersize=8,
-        err_kws={"capsize": 3}
+        # err_kws={"capsize": 3}
     )
     
     ax.set_xlabel('Sample Size ($N$)', fontsize=12)
-    ax.set_ylabel('Mean Estimation Error ($||\hat{\mu} - \mu||_2$)', fontsize=12)
+    ax.set_ylabel(r'Mean Estimation Error ($||\hat{\mu} - \mu||_2$)', fontsize=12)
     ax.set_title(f'MVN: Asymptotic Estimation Error Analysis\nMechanism: {mechanism}',
                  fontsize=14, fontweight='bold')
     ax.legend(title='Method', loc='best', frameon=True)
@@ -1072,11 +1072,11 @@ def create_correlation_report(df, output_folder='plots'):
         ax = fig_indep.axes[0]
         
         # UPDATED TITLE: Specifies Independence and Sigma = I
-        ax.set_title("Impact of Correlation: Independence ($\Sigma = I$)\nMechanism: MAR", 
+        ax.set_title(r"Impact of Correlation: Independence ($\Sigma = I$)\nMechanism: MAR", 
                      fontweight='bold', fontsize=14)
         
         # UPDATED Y-LABEL: Specifies the error formula
-        ax.set_ylabel('Mean Estimation Error ($||\hat{\mu} - \mu||_2$)', fontsize=12)
+        ax.set_ylabel(r'Mean Estimation Error ($||\hat{\mu} - \mu||_2$)', fontsize=12)
         
         # Save
         save_path = os.path.join(output_folder, 'error_independence_MAR.png')
@@ -1105,7 +1105,7 @@ def create_correlation_report(df, output_folder='plots'):
                      fontweight='bold', fontsize=14)
         
         # UPDATED Y-LABEL
-        ax.set_ylabel('Mean Estimation Error ($||\hat{\mu} - \mu||_2$)', fontsize=12)
+        ax.set_ylabel(r'Mean Estimation Error ($||\hat{\mu} - \mu||_2$)', fontsize=12)
         
         # Save
         save_path = os.path.join(output_folder, 'error_strong_correlation_MAR.png')
