@@ -114,29 +114,6 @@ def em_multivariate_gaussian(data_obs, max_iter=100, tol=1e-4, save_plot_path=No
     """
     Complete EM algorithm for estimating mu and Sigma of a multivariate Gaussian
     with missing data.
-    
-    Parameters:
-    -----------
-    data_obs : list of arrays
-        Observed data with missing values
-    max_iter : int
-        Maximum number of iterations
-    tol : float
-        Convergence tolerance
-    save_plot_path : str, optional
-        Path to save the convergence plot (e.g., 'convergence.png')
-        If None, plot is not saved
-    
-    Returns:
-    --------
-    mu_hat : array
-        Estimated mean vector
-    Sigma_hat : array
-        Estimated covariance matrix
-    n_iter : int
-        Number of iterations performed
-    errors : dict
-        Dictionary with 'mu_errors' and 'sigma_errors' lists
     """
     N = len(data_obs)
     

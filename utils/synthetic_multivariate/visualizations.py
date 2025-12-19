@@ -16,13 +16,6 @@ plt.rcParams['font.family'] = 'serif'
 def plot_error_heatmap(df, figsize=(12, 4)):
     """
     Create heatmap showing average error across all mechanisms.
-    
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Simulation results
-    figsize : tuple
-        Figure size
     """
     df_error = prepare_error_data(df)
     
@@ -194,15 +187,6 @@ def plot_error_comparison(df, mechanism='MCAR', figsize=(10, 6)):
 def plot_time_comparison(df, mechanism='MCAR', figsize=(10, 6)):
     """
     Plot computation time comparison with confidence intervals.
-    
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Simulation results
-    mechanism : str
-        Missingness mechanism ('MCAR', 'MAR', or 'MNAR')
-    figsize : tuple
-        Figure size
     """
     df_time = prepare_time_data(df)
     data = df_time[df_time['mechanism'] == mechanism]
@@ -261,15 +245,6 @@ def plot_time_comparison(df, mechanism='MCAR', figsize=(10, 6)):
 def plot_sigma_error_comparison(df, mechanism='MCAR', figsize=(10, 6)):
     """
     Plot covariance (sigma) estimation error comparison with confidence intervals.
-    
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Simulation results
-    mechanism : str
-        Missingness mechanism ('MCAR', 'MAR', or 'MNAR')
-    figsize : tuple
-        Figure size
     """
     cov_cols = {
         'sigma_error': 'EM',
@@ -341,15 +316,6 @@ def plot_sigma_error_comparison(df, mechanism='MCAR', figsize=(10, 6)):
 def plot_sample_size_cov_error(df, mechanism='MCAR', figsize=(10, 6)):
     """
     Plot mean error vs sample size comparison.
-    
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Simulation results
-    mechanism : str
-        Missingness mechanism ('MCAR', 'MAR', or 'MNAR')
-    figsize : tuple
-        Figure size
     """
     # Prepare error data
     error_cols = {
@@ -424,15 +390,6 @@ def plot_sample_size_cov_error(df, mechanism='MCAR', figsize=(10, 6)):
 def plot_sample_size_error(df, mechanism='MCAR', figsize=(10, 6)):
     """
     Plot mean error vs sample size comparison.
-    
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Simulation results
-    mechanism : str
-        Missingness mechanism ('MCAR', 'MAR', or 'MNAR')
-    figsize : tuple
-        Figure size
     """
     # Prepare error data
     error_cols = {
@@ -507,15 +464,6 @@ def plot_sample_size_error(df, mechanism='MCAR', figsize=(10, 6)):
 def plot_sample_size_time(df, mechanism='MCAR', figsize=(10, 6)):
     """
     Plot computation time vs sample size comparison.
-    
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Simulation results
-    mechanism : str
-        Missingness mechanism ('MCAR', 'MAR', or 'MNAR')
-    figsize : tuple
-        Figure size
     """
     # Prepare time data
     time_cols = {
@@ -604,44 +552,6 @@ def plot_method_comparison_flexible(df,
                                    figsize=(10, 6)):
     """
     Flexible plotting function to compare different imputation methods.
-    
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Simulation results containing method comparison data
-    x_axis : str
-        Column name for x-axis. Options:
-        - 'n_samples': Sample size
-        - 'missingness_pct': Missingness percentage
-        - 'actual_missingness_pct': Actual missingness percentage achieved
-        - 'mechanism': Missingness mechanism
-    y_axis : str
-        Metric to plot. Options:
-        - 'time': Computation time (uses convergence_time, *_imputation_time)
-        - 'error': Imputation error (mean parameter error)
-        - 'cov_error': Covariance error
-    mechanism : str or None
-        Missingness mechanism ('MCAR', 'MAR', or 'MNAR'). If None, includes all.
-    missingness_pct : float or None
-        Missingness percentage to filter (e.g., 0.3 for 30%). If None, includes all.
-    n_samples : int or None
-        Sample size to filter. If None, includes all.
-    mean_idx : int or None
-        Mean configuration index to filter. If None, includes all.
-    cov_idx : int or None
-        Covariance configuration index to filter. If None, includes all.
-    methods : list or None
-        List of methods to include. If None, includes all available methods.
-        Options: ['EM', 'MICE', 'KNN', 'Mode', 'Median', 'Mean']
-    log_scale : bool or None
-        Whether to use log scale for y-axis. If None, decides automatically based on range.
-    figsize : tuple
-        Figure size
-        
-    Returns:
-    --------
-    matplotlib.figure.Figure or None
-        The generated figure, or None if no data matches filters
     """
     # Define method column mappings based on y_axis
     if y_axis == 'time':
@@ -866,17 +776,6 @@ def plot_method_comparison_flexible(df,
 def create_full_report(df, output_folder='tests'):
     """
     Generate a complete set of visualization reports for missing data imputation analysis.
-    
-    Parameters:
-    -----------
-    df : pandas.DataFrame
-        DataFrame containing the results with columns for mechanism, method, 
-        missing_rate, mean_error, computation_time, etc.
-    
-    Returns:
-    --------
-    None
-        Saves all visualization files to the 'tests' directory
     """
     os.makedirs(output_folder, exist_ok=True)
     for mechanism in ['MCAR', 'MAR', 'MNAR']:
@@ -928,17 +827,6 @@ def create_full_report(df, output_folder='tests'):
 def plot_sample_size_error_filtered(df, mechanism='MCAR', missingness_pct=0.3, figsize=(10, 6)):
     """
     Plot mean error vs sample size for a specific missingness percentage and mechanism.
-    
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Simulation results
-    mechanism : str
-        Missingness mechanism ('MCAR', 'MAR', or 'MNAR')
-    missingness_pct : float
-        Missingness percentage to filter for (e.g., 0.3 for 30%)
-    figsize : tuple
-        Figure size
     """
     # Prepare error data
     error_cols = {
@@ -1023,26 +911,6 @@ def plot_time_per_iteration(df,
                            figsize=(10, 6)):
     """
     Plot time per iteration with flexible filtering options.
-    
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Simulation results
-    mechanism : str or None
-        Missingness mechanism ('MCAR', 'MAR', or 'MNAR'). If None, plots all mechanisms.
-    mean_idx : int or None
-        Mean configuration index to filter. If None, includes all.
-    cov_idx : int or None
-        Covariance configuration index to filter. If None, includes all.
-    n_samples : int or None
-        Sample size to filter. If None, includes all (used when x_axis='missingness_pct').
-    missingness_pct : float or None
-        Missingness percentage to filter (e.g., 0.3 for 30%). If None, includes all 
-        (used when x_axis='n_samples').
-    x_axis : str
-        What to plot on x-axis: 'n_samples' or 'missingness_pct'
-    figsize : tuple
-        Figure size
     """
     # Start with full dataframe
     data = df.copy()
