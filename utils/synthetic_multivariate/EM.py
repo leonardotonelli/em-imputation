@@ -203,10 +203,10 @@ if __name__ == "__main__":
             [ 3,  6,  1, 12]
         ])
     name = "MNAR_missing_10pct"
-    save_plot = False # if we want to save the convergence plot
+    save_plot = True # if we want to save the convergence plot, these are going to be saved in plots/synthetic_multivariate/convergence_checks
 
 
-    data_obs = np.array(pd.read_csv(f"tests\\{name}.csv", skiprows=0))
+    data_obs = np.array(pd.read_csv(f"utils\\synthetic_multivariate\\tests\\{name}.csv", skiprows=0))
 
     print(f"\nObserved data dimensions: {data_obs.shape}")
     print(f"Missing values percentage: {np.sum(np.isnan(data_obs)) / data_obs.size * 100:.2f}%")
@@ -237,5 +237,5 @@ if __name__ == "__main__":
     mu_error = np.linalg.norm(mu_estimated - mu_real)
     Sigma_error = np.linalg.norm(Sigma_estimated - Sigma_real) / len(Sigma_estimated)**2
 
-    print(f"\nERROR: Distance from Real Mu: {mu_error:.4f}")
-    print(f"ERROR: Distance from Real Sigma: {Sigma_error:.4f}")
+    print(f"\nDistance from Real Mu: {mu_error:.4f}")
+    print(f"Distance from Real Sigma: {Sigma_error:.4f}")

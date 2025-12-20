@@ -192,12 +192,13 @@ if __name__ == "__main__":
     y_semi[mask] = -1  # -1 denotes unlabeled
     
     # 3. Run Algorithm
-    pi_est, mu_est, Sigma_est = em_semi_supervised(X, y_semi, n_components=3)
+    pi_est, mu_est, Sigma_est, num_iterations = em_semi_supervised(X, y_semi, n_components=3)
     
     
     print("\n--- Final Results ---")
-    print(f"Estimated Means:\n{mu_est}")
+    print(f"Estimated Means:\n{mu_est} \n")
+    print(f"Estimated Mixing Proportions:\n{pi_est} \n")
+    print(f"Estimated Covariances:\n{Sigma_est} \n")
+    print(f"Number of Iterations:\n{num_iterations} \n")
     
-    # Simple accuracy check on the UNLABELED portion
-    unlabeled_idx = (y_semi == -1)
-    print(f"Accuracy on unlabeled data: {acc*100:.2f}%")
+    

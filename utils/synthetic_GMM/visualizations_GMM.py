@@ -943,8 +943,8 @@ def create_full_report_gmm(df, output_folder='tests'):
 # Main execution
 if __name__ == "__main__":
     # Load data
-    df = pd.read_csv("tests\\simulation_results_gmm.csv")
+    df = pd.read_csv("utils\\synthetic_GMM\\tests\\simulation_results_gmm.csv")
     
-    create_full_report_gmm(df, output_folder='tests')
+    create_full_report_gmm(df, output_folder='utils\\synthetic_GMM\\tests')
 
 

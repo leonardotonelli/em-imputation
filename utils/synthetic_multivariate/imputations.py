@@ -115,11 +115,18 @@ if __name__ == "__main__":
             [ 3,  6,  1, 12]
         ])
     
-    df = pd.read_csv("synthetic_multivariate\\tests\\MNAR_missing_30pct.csv", skiprows=0)
+    df = pd.read_csv("utils\\synthetic_multivariate\\tests\\MNAR_missing_30pct.csv", skiprows=0)
     data_array = df.to_numpy()
     mean_err, mean_cov_err, mean_time = mean_imputation(data_array, means, cov_matrix)
     median_err, median_cov_err, median_time = median_imputation(data_array, means, cov_matrix)
     mode_err, mode_cov_err, mode_time = mode_imputation(data_array, means, cov_matrix)
-    knn_err, knn_cov_err, knn_time = knn_imputation(data_array, means, cov_matrix, n_neighbors=10)
+    knn_err, knn_cov_err, knn_time = knn_imputation(data_array, means, cov_matrix, k=10)
     mice_err, mice_cov_err, mice_time = mice_imputation(data_array, means, cov_matrix, iterations=5)
+
+    print("\n=== Imputation Results ===")
+    print(f"Mode Imputation - Proportion Error: {mode_err:.6f}")
+    print(f"KNN Imputation (k=10) - Proportion Error: {knn_err:.6f}")
+    print(f"MICE Imputation - Proportion Error: {mice_err:.6f}")
+    print(f"Mean Imputation - Proportion Error: {mean_err:.6f}")
+    print(f"Median Imputation - Proportion Error: {median_err:.6f}")
 

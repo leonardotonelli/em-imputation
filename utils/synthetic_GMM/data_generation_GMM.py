@@ -208,6 +208,6 @@ if __name__ == "__main__":
         cov_matrices=cov_matrices,
         weights=weights,
         missingness_percentages=[0.1, 0.2, 0.3, 0.5],
-        output_folder="tests",
+        output_folder="utils\\synthetic_GMM\\tests",
         random_state=42
     )

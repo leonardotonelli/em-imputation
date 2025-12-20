@@ -25,6 +25,7 @@ def simulation_study_multivariate(
     data_path=None,
     max_iter=200,
     tol=1e-5,
+    k_nearest_neighbors=10,
     random_state=42
 ):
     """
@@ -89,9 +90,7 @@ def simulation_study_multivariate(
                     
                     # Iterate through missingness percentages
                     for miss_pct in percentages_to_test:
-                        
-                        k = 10  # KNN parameter
-                        
+                                                
                         # Iterate through mechanisms
                         for mechanism in mechanisms:
                             
@@ -162,7 +161,7 @@ def simulation_study_multivariate(
                             
                             # KNN imputation
                             knn_err, knn_cov_err, knn_time = knn_imputation(
-                                data_obs, means_array, cov_matrix, k=k
+                                data_obs, means_array, cov_matrix, k=k_nearest_neighbors
                             )
                             
                             # MICE imputation
@@ -268,14 +267,15 @@ if __name__ == "__main__":
     
     # Run simulation study
     results = simulation_study_multivariate(
-        result_path="tests",
-        data_path="tests",
+        result_path="utils\\synthetic_multivariate\\tests",
+        data_path="utils\\synthetic_multivariate\\tests",
         means_to_test=means_to_test,
         cov_to_test=cov_to_test,
         n_samples_to_test=n_samples_to_test,
         percentages_to_test=percentages_to_test,
         max_iter=200,
         tol=1e-5,
+        k_nearest_neighbors=10,
         random_state=42
     )
     print("Results saved.")

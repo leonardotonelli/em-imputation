@@ -158,6 +158,6 @@ if __name__ == "__main__":
         data=df,
         missingness_percentages=[0.1, 0.2, 0.3],
         target_column_percentage=0.5,
-        output_folder="tests",
+        output_folder="utils\\synthetic_multivariate\\tests",
         random_state=42
     )

@@ -22,7 +22,7 @@ pip install -r requirements.txt
 
 - `simulation_run.py` is provided to generate figures and reproduce plots without re-running the full simulation experiments; by default it imports and processes previously saved CSV results located in `results/` and writes plots to `plots/`.
 
-- To re-run the full simulations, open `simulation_run.py` and **uncomment** the calls to `simulation_study_multivariate` and `simulation_study_gmm`. Simulations and other parameter configurations can be changed directly in `simulation_run.py`.
+- To re-run the full simulations, open `simulation_run.py` and **uncomment** the calls to `simulation_study_multivariate` and `simulation_study_gmm`. Simulations and other parameter configurations can be changed directly in `simulation_run.py`. Please be careful to change the output directories to avoid overwriting our simulation results.
 
 - Caution: running full simulations with a reasonably large set of parameter combinations (many sample sizes, missingness rates, covariance settings, etc.) requires substantial compute time and frequently takes several hours.
 
@@ -144,7 +144,7 @@ Utilities and core code
 
 ## 6. Utils and Testing Behavior
 
-- Each module file inside `utils/` can be executed independently as a small test runner. When executed, a module runs tests of its most relevant functions and writes the test outputs into a `tests/` or `test_outputs/` folder located alongside that module.
+- Each module file inside `utils/` (except "real_example/evaluation.py) can be executed independently as a small test runner. When executed, a module runs tests of its most relevant functions and writes the test outputs into a `tests/` or `test_outputs/` folder located alongside that module.
 
 - Some unit/functional tests depend on previously generated data or aggregated results (for example, visualizers often expect a `results` CSV to be present). Therefore the execution order of utils tests is important: the first test(s) in a test sequence should generate or download any required datasets so that subsequent tests can operate on those artifacts.
 

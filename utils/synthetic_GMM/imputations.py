@@ -226,7 +226,7 @@ if __name__ == "__main__":
     true_proportions = [0.3, 0.4, 0.3]
     
     # Load dataset with missing labels
-    df = pd.read_csv("tests\\MAR_missing_20pct.csv", skiprows=0)
+    df = pd.read_csv("utils\\synthetic_GMM\\tests\\MAR_missing_20pct.csv", skiprows=0) # this file must exist 
     data_array = df.to_numpy()
     
     # Specify which column contains the labels (e.g., last column)
@@ -234,7 +234,7 @@ if __name__ == "__main__":
     
     # Select best k using cross-validation for KNN
     best_k = select_k_cv(data_array, label_column_index, k_values=None, n_folds=10)
-    print(f"Using k={best_k} for KNN imputation")
+    print(f"After cross-validation, using k={best_k} for KNN imputation")
     
     # Perform different imputation methods
     mode_err, mode_time = mode_imputation_labels(data_array, label_column_index, true_proportions)
@@ -245,5 +245,5 @@ if __name__ == "__main__":
     print("\n=== Label Imputation Results ===")
     print(f"Mode Imputation - Proportion Error: {mode_err:.6f}")
     print(f"KNN Imputation (k={best_k}) - Proportion Error: {knn_err:.6f}")
-    print(f"MICE Imputation - Proportion Error: {rf_err:.6f}")
+    print(f"Random Forest Imputation - Proportion Error: {rf_err:.6f}")
     
