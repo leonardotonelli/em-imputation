@@ -1,4 +1,4 @@
-# 1. Environment Setup and Installation
+## 1. Environment Setup and Installation
 
 - Python: use **Python 3.10 or 3.11**.
 - Create an isolated environment and install pinned dependencies (example using venv):
@@ -18,7 +18,7 @@ pip install -r requirements.txt
 - Randomness in experiments is controlled via the `random_state` parameter available in the simulation and utility functions.
 
 
-# 2. Running the Project
+## 2. Running the Project
 
 - `simulation_run.py` is provided to generate figures and reproduce plots without re-running the full simulation experiments; by default it imports and processes previously saved CSV results located in `results/` and writes plots to `plots/`.
 
@@ -27,7 +27,62 @@ pip install -r requirements.txt
 - Caution: running full simulations with a reasonably large set of parameter combinations (many sample sizes, missingness rates, covariance settings, etc.) requires substantial compute time and frequently takes several hours.
 
 
-# 3. Directory Structure
+## 3. Directory Structure
+
+```text
+project-luca-leo-vale_stat/
+├── README.md
+├── requirements.txt
+├── simulation_run.py
+├── writeup.tex
+├── real_example.ipynb
+├── additional_visualizations.ipynb
+├── data/
+│   ├── real_example/
+│   │   ├── data.csv
+│   │   ├── preprocessing.py
+│   │   └── processed_data_multiclass.npz
+│   ├── synthetic_multivariate/
+│   │   ├── datasets_complete/
+│   │   └── datasets_missingness/
+│   ├── synthetic_GMM/
+│   │   ├── datasets_complete/
+│   │   └── datasets_missingness/
+│   └── synthetic_gmm_alternative/
+├── results/
+│   ├── synthetic_multivariate/
+│   │   └── simulation_results.csv
+│   ├── synthetic_gmm/
+│   │   └── simulation_results_gmm.csv
+│   └── real_example/
+│       ├── 10_d/
+│       └── 2_d/
+├── plots/
+│   ├── synthetic_multivariate/
+│   └── synthetic_gmm/
+└── utils/
+    ├── synthetic_multivariate/
+    │   ├── data_generation.py
+    │   ├── EM.py
+    │   ├── imputations.py
+    │   ├── simulation_study.py
+    │   ├── visualizations.py
+    │   └── tests/
+    ├── synthetic_GMM/
+    │   ├── data_generation_GMM.py
+    │   ├── EM_GMM.py
+    │   ├── imputations.py
+    │   ├── simulation_study_GMM.py
+    │   ├── visualizations_GMM.py
+    │   └── tests/
+    └── real_example/
+        ├── evaluation.py
+        └── tests/
+```
+
+The tree above reflects the repository layout and is consistent with the descriptive entries in this section.
+
+## 4. Directory Detailed Description
 
 Below is a concise, complete description of the repository layout and the purpose of each file and directory.
 
@@ -80,14 +135,14 @@ Utilities and core code
     - `tests/` — small fixtures used to validate evaluation routines.
 
 
-# 4. Notebooks Description
+## 5. Notebooks Description
 
 - `additional_visualizations.ipynb`: used to create the supplementary visualizations that are included in the report; it provides flexible plotting utilities for independent exploration of simulation results.
 
 - `real_example.ipynb`: runs the real-world example described in the report and reproduces the figures and metrics referenced in that section.
 
 
-# 5. Utils and Testing Behavior
+## 6. Utils and Testing Behavior
 
 - Each module file inside `utils/` can be executed independently as a small test runner. When executed, a module runs tests of its most relevant functions and writes the test outputs into a `tests/` or `test_outputs/` folder located alongside that module.
 
