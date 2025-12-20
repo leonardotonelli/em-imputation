@@ -267,8 +267,8 @@ if __name__ == "__main__":
     
     # Run simulation study
     results = simulation_study_multivariate(
-        result_path="utils\\synthetic_multivariate\\tests",
-        data_path="utils\\synthetic_multivariate\\tests",
+        result_path="utils\\synthetic_multivariate\\tests\\simulation_results",
+        data_path="utils\\synthetic_multivariate\\tests\\simulation_results\\data",
         means_to_test=means_to_test,
         cov_to_test=cov_to_test,
         n_samples_to_test=n_samples_to_test,

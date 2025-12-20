@@ -235,8 +235,8 @@ if __name__ == "__main__":
 
     # Run GMM simulation study (if not in results folder)
     results_gmm = simulation_study_gmm(
-        result_path="utils\\synthetic_GMM\\tests",
-        data_path="utils\\synthetic_GMM\\tests",
+        result_path="utils\\synthetic_GMM\\tests\\simulation_results",
+        data_path="utils\\synthetic_GMM\\tests\\simulation_results\\data",
         means_to_test=MEANS_GMM,
         cov_matrices_to_test=COVS_GMM,
         weights_to_test=WEIGHTS_GMM,

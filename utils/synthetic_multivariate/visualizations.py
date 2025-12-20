@@ -1117,8 +1117,8 @@ def create_correlation_report(df, output_folder='plots'):
 # --- MAIN EXECUTION ---
 if __name__ == "__main__":
     
-    results_path = "utils\\synthetic_multivariate\\tests\\simulation_results.csv"
-    output_dir = "utils\\synthetic_multivariate\\tests"
+    results_path = "utils\\synthetic_multivariate\\tests\\simulation_results\\simulation_results.csv"
+    output_dir = "utils\\synthetic_multivariate\\tests\\plots"
 
     # 2. Generate Plots
     if os.path.exists(results_path):
