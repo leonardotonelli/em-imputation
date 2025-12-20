@@ -6,7 +6,7 @@ from utils.synthetic_GMM.simulation_study_GMM import simulation_study_gmm
 from utils.synthetic_GMM.visualizations_GMM import create_full_report_gmm
 
 
-### SYNTHETIC MULTIVARIATE GAUSSIAN DATASET SIMULATION STUDY ###
+### ==== SYNTHETIC MULTIVARIATE GAUSSIAN DATASET SIMULATION STUDY ==== ###
 
 # Define dimension and mean and various covariance matrices for MVN
 DIM = 5
@@ -25,11 +25,6 @@ np.fill_diagonal(cov_block, 1.0)
 cov_block[2:5, 2:5] = 0.8
 np.fill_diagonal(cov_block, 1.0)
 
-# Define parameter for Cigar-shaped covariance
-cov_cigar = np.full((DIM, DIM), 0.9)
-np.fill_diagonal(cov_cigar, 1.0)
-cov_tight = np.eye(DIM) * 0.1
-
 # Define simulation parameters
 MEANS = [zeros]
 COVARIANCES = [
@@ -43,16 +38,15 @@ N_SAMPLES = np.arange(100, 5000, 200)
 PERCENTAGES_MISSINGNESS = np.arange(0.1, 0.31, 0.05)
 
 # Run simulation study (if not in results folder) UNCOMMENT IF YOU WANT TO RUN THE SIMULATION AGAIN, it takes a while
-# results =     (
-#     result_path="results\\synthetic_multivariate", # CHANGE THIS IF YOU RUN TO NOT OVERWRITE OUR RESULTS
-#     data_path="data\\synthetic_multivariate", # CHANGE THIS IF YOU RUN TO NOT OVERWRITE OUR RESULTS
+# results = simulation_study_multivariate(
+#     result_path="results\\synthetic_multivariate",
+#     data_path="data\\synthetic_multivariate",
 #     means_to_test=MEANS,
 #     cov_to_test=COVARIANCES,
 #     n_samples_to_test=N_SAMPLES,
 #     percentages_to_test=PERCENTAGES_MISSINGNESS,
 #     max_iter=200,
 #     tol=1e-5,
-#     k_nearest_neighbors=10,
 #     random_state=42
 # )
 
@@ -64,8 +58,14 @@ create_full_report(results, output_folder='plots\\synthetic_multivariate')
 
 
 
+### ==== SYNTHETIC GMM DATASET SIMULATION STUDY ==== ###
 
-### SYNTHETIC GMM DATASET SIMULATION STUDY ###
+# Define parameter for Cigar-shaped covariance
+cov_cigar = np.full((DIM, DIM), 0.9)
+np.fill_diagonal(cov_cigar, 1.0)
+cov_tight = np.eye(DIM) * 0.1
+
+
 DIM = 5
 MEANS_GMM = [
     [np.zeros(DIM), np.ones(DIM)*10, np.ones(DIM)*20],
@@ -85,8 +85,8 @@ PERCENTAGES_CLASS_MISSINGNESS = np.arange(0.1, 0.71, 0.1)
 
 # # Run GMM simulation study (if not in results folder) UNCOMMENT IF YOU WANT TO RUN THE SIMULATION AGAIN, it takes a while
 # results_gmm = simulation_study_gmm(
-#     result_path="results\\synthetic_gmm_alternative", # CHANGE THIS IF YOU RUN TO NOT OVERWRITE OUR RESULTS
-#     data_path="data\\synthetic_gmm_alternative", # CHANGE THIS IF YOU RUN, TO NOT OVERWRITE OUR RESULTS
+#     result_path="results\\synthetic_gmm_alternative",
+#     data_path="data\\synthetic_gmm_alternative",
 #     means_to_test=MEANS_GMM,
 #     cov_matrices_to_test=COVS_GMM,
 #     weights_to_test=WEIGHTS_GMM,
@@ -101,10 +101,10 @@ PERCENTAGES_CLASS_MISSINGNESS = np.arange(0.1, 0.71, 0.1)
 results_gmm = pd.read_csv("results\\synthetic_gmm\\simulation_results_gmm.csv")
 
 # Visualize GMM results
-create_full_report_gmm(results_gmm, output_folder='plots\\synthetic_gmm')
+create_full_report_gmm(results_gmm, output_folder='plots\\synthetic_gmm_alternative')
 
 print("\n" + "="*80)
 print("ALL SIMULATION STUDIES COMPLETED")
 print("="*80)
-print("\nMultivariate Gaussian results: plots\\synthetic_gmm")
+print("\nMultivariate Gaussian results: plots\\synthetic_gmm_alternative")
 print("GMM results: plots\\synthetic_gmm")
