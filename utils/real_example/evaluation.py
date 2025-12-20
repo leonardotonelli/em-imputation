@@ -210,12 +210,15 @@ def _em_impute(X, labels_masked, n_components=2, max_iter=200, tol=1e-4, verbose
 
 
 
-def evaluate_imputers(X_pca, y_experts, y_groundtruth, n_components=2):
+def evaluate_imputers(X_pca, y_experts, y_groundtruth, n_components=2, random_state=None):
     """
     Imputes missing values in y_experts using various methods (Mode, KNN, RF, EM),
     evaluates the results against y_groundtruth, and computes the difference 
     in class proportions (pi) using each algorithm's internal estimate."""
     
+    if random_state is not None:
+        np.random.seed(random_state)
+
     # Ensure ground truth is integer type
     y_true = y_groundtruth.astype(int)
 

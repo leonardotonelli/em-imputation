@@ -43,7 +43,7 @@ N_SAMPLES = np.arange(100, 5000, 200)
 PERCENTAGES_MISSINGNESS = np.arange(0.1, 0.31, 0.05)
 
 # Run simulation study (if not in results folder) UNCOMMENT IF YOU WANT TO RUN THE SIMULATION AGAIN, it takes a while
-# results = simulation_study_multivariate(
+# results =     (
 #     result_path="results\\synthetic_multivariate",
 #     data_path="data\\synthetic_multivariate",
 #     means_to_test=MEANS,

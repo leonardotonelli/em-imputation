@@ -1,42 +1,98 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/XJSyBe-v)
-# Deliverables 
+# 1. Environment Setup and Installation
 
-## Intermediate submission 
+- Python: use **Python 3.10 or 3.11**.
+- Create an isolated environment and install pinned dependencies (example using venv):
 
-1. By **Sunday November 9**, you should have chosen a team and a topic.
-2. On **Friday November 21** your team will submit a 1-2 page writeup. Your writeup should provide a preliminary introduction to the topic you will study and provide clear motivation for why they are interesting and/or relevant. 
+```bash
+# From repository root
+python -m venv .venv
+# Windows
+.venv\Scripts\activate
+# POSIX
+# source .venv/bin/activate
+pip install -r requirements.txt
+```
 
-## Final submission 
+- The repository contains `requirements.txt` with pinned versions; use `pip freeze > requirements.freeze.txt` to capture an exact environment for publication or review.
 
-You are required to hand in a PDF version of your report `report.pdf` (**max 20 pages**) and the source code used. You should not show the actual code in the PDF report, unless you want to point out something specific.
-
-Your `README.md` should contain instructions on reproducing the PDF report from the quarto file. This can be useful if you have issues with the automatic generation of the PDF report right before the deadline. Your `README.md` should also include a brief description of the contributions of each team member, if you are a team of three students.
-
-**Checklist**:
-
-1. [ ] `report.pdf` in GitHub repository (e.g., generated from `report.qmd` or `report.tex`) (**max 20 pages**)
-2. [ ]  source code in GitHub repository (should be able to run from top to bottom)
-3. [ ] `README.md` with instructions on how to run the code, reproduce the PDF report, and a brief description of the team members' contributions, if applicable (please delete everything not related to your project in it)
-
-
-## Project
-
-The goal of this project is quite broad, students are free to come up with their own ideas. While simulation studies are the designated topic, groups that found interesting data during the small project and would like to carry on analyzing it, or groups interested in studying a bit deeper one of the methodological concepts from this course are encouraged to approach the teachers during the exercises and discuss their ideas. **Prospective topics for the final project will be gradually revealed during the lectures.**
-
-Part of the grade for the final project (10 % of the total grade, i.e., one quarter of the final project) will be awarded for value added (original data analysis, simulation study answering a previously unclear question, etc.). All of the prospective topics that will be introduced during the lecture will have this element, and by half-way through the semester (when the final project will start) it should be clear through the examples what the project should aspire to. We will also discuss this in person at some point, likely on Week 6. The remaining three quarters of the project (i.e., 30 % of the total grade) will be awarded for
-
-- quality of the report _(clarity, readability, structure, referencing, etc.)_
-- graphical considerations _(well chosen (as discussed during the course) graphics with captions, referenced from the main text)_
-- concepts explored beyond the scope of the course _(in the soft sense that they were not fully covered during classes)_
-- overall quality _(correctness, demonstration of understanding, etc.)_
-
-A project seriously lacking in any of the criteria above will be penalized.
+- Randomness in experiments is controlled via the `random_state` parameter available in the simulation and utility functions.
 
 
-### Selected Project: The EM algorithm for different patterns of missingness
+# 2. Running the Project
 
-- Comparison of the performances of the EM algorithm for different percentage of missing values and for different missing-data mechanisms.
-- *Optional (if you have time and energy):* In a setting with missing data, what about comparing parameter estimates obtained via EM with those obtained (with maximum likelihood) after imputation? You can choose one (or more) of the imputation methods described [here](https://rmisstastic.netlify.app/how-to/impute/missImp.pdf).
-- The project should address the following question: When you are faced with a missing data problem, when is the EM algorithm a good option for statistical inference (the estimation process)?
+- `simulation_run.py` is provided to generate figures and reproduce plots without re-running the full simulation experiments; by default it imports and processes previously saved CSV results located in `results/` and writes plots to `plots/`.
+
+- To re-run the full simulations, open `simulation_run.py` and **uncomment** the calls to `simulation_study_multivariate` and `simulation_study_gmm`. Simulations and other parameter configurations can be changed directly in `simulation_run.py`.
+
+- Caution: running full simulations with a reasonably large set of parameter combinations (many sample sizes, missingness rates, covariance settings, etc.) requires substantial compute time and frequently takes several hours.
 
 
+# 3. Directory Structure
+
+Below is a concise, complete description of the repository layout and the purpose of each file and directory.
+
+Top-level files
+- `README.md` — this document (environment, running instructions, directory map, notebooks, and testing behavior).
+- `requirements.txt` — pinned Python package versions required to run the code.
+- `simulation_run.py` — primary script to load results, generate plots, and (optionally) run full experiments by calling `simulation_study_multivariate` and `simulation_study_gmm`.
+- `real_example.ipynb` — notebook executing the real-world example (see Section 4).
+- `additional_visualizations.ipynb` — supplementary visualization notebook (see Section 4).
+- `report.tex` — LaTeX source of the project report.
+- `report.pdf` — pdf project report.
+
+Data
+- `data/` — root data directory.
+  - `real_example/`
+    - `data.csv` — raw clinical dataset used in the real example.
+    - `ground_truth.xlsx` (if present) — ground truth labels used for evaluation in the notebook.
+    - `preprocessing.py` — loader and preprocessing functions for the real dataset (e.g., `load_data_binary`).
+    - `processed_data_multiclass.npz` — preprocessed representation saved for reproducibility.
+  - `synthetic_multivariate/` and `synthetic_gmm_alternative/` and `synthetic_GMM/` — folders that store generated datasets used in simulation studies. Each of these contains:
+    - `datasets_complete/` — complete generated datasets organized by sample-size subfolders (e.g., `100_samples`, `300_samples`, ...).
+    - `datasets_missingness/` — datasets with induced missingness, organized by mechanism (`MCAR`, `MAR`, `MNAR`) and by missingness percentage subfolders.
+    - `synthetic_multivariate/` and other patterned subfolders mirror the same structure for different experimental conditions.
+
+Results and plots
+- `results/` — per-experiment CSV summaries produced by simulation routines.
+  - `synthetic_multivariate/simulation_results.csv` — aggregated MVN experiment results.
+  - `synthetic_gmm/simulation_results_gmm.csv` — aggregated GMM experiment results.
+  - `real_example/` — notebook outputs for the real example (e.g., `10d` and `2d` metrics CSVs).
+- `plots/` — figure outputs produced from the `results/` CSV files; organized by study (`synthetic_multivariate`, `synthetic_gmm`, `synthetic_multivariate` missingness mechanisms, etc.).
+
+Utilities and core code
+- `utils/` — contains implementation modules and small test fixtures.
+  - `utils/synthetic_multivariate/`
+    - `data_generation.py` — functions to generate multivariate normal datasets with specified means and covariances.
+    - `EM.py` — EM algorithm implementation for multivariate Gaussian data with missing entries.
+    - `imputations.py` — wrapper functions that perform imputations (mean, median, KNN, MICE, etc.) and return evaluation metrics.
+    - `simulation_study.py` — high-level orchestration of MVN simulation experiments (`simulation_study_multivariate`).
+    - `visualizations.py` — functions to create summary plots and reports for MVN results.
+    - `tests/` — test fixtures and small reference CSVs used by the module tests.
+  - `utils/synthetic_GMM/`
+    - `data_generation_GMM.py` — functions to generate GMM datasets and to inject class-label missingness.
+    - `EM_GMM.py` — EM implementation for semi-supervised GMM fitting.
+    - `imputations.py` — simple label imputation algorithms (mode, KNN, random forest-based) and helpers.
+    - `simulation_study_GMM.py` — high-level orchestration of GMM experiments (`simulation_study_gmm`).
+    - `visualizations_GMM.py` — plotting and reporting utilities for GMM experiments.
+    - `tests/` — test fixtures and example cases for GMM utilities.
+  - `utils/real_example/`
+    - `evaluation.py` — evaluation helpers used by `real_example.ipynb` (e.g., `_em_impute`, `evaluate_imputers`, `test_gmm_normality_assumptions`).
+    - `tests/` — small fixtures used to validate evaluation routines.
+
+
+# 4. Notebooks Description
+
+- `additional_visualizations.ipynb`: used to create the supplementary visualizations that are included in the report; it provides flexible plotting utilities for independent exploration of simulation results.
+
+- `real_example.ipynb`: runs the real-world example described in the report and reproduces the figures and metrics referenced in that section.
+
+
+# 5. Utils and Testing Behavior
+
+- Each module file inside `utils/` can be executed independently as a small test runner. When executed, a module runs tests of its most relevant functions and writes the test outputs into a `tests/` or `test_outputs/` folder located alongside that module.
+
+- Some unit/functional tests depend on previously generated data or aggregated results (for example, visualizers often expect a `results` CSV to be present). Therefore the execution order of utils tests is important: the first test(s) in a test sequence should generate or download any required datasets so that subsequent tests can operate on those artifacts.
+
+- For reproducible grading and review, run the modules that generate synthetic data first, then run dependent module tests and visualizers in the order they state in their docstrings or the module headers.
+
+---
