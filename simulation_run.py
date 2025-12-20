@@ -47,6 +47,7 @@ PERCENTAGES_MISSINGNESS = np.arange(0.1, 0.31, 0.05)
 #     percentages_to_test=PERCENTAGES_MISSINGNESS,
 #     max_iter=200,
 #     tol=1e-5,
+#     k_nearest_neighbors=10,
 #     random_state=42
 # )
 
@@ -85,8 +86,8 @@ PERCENTAGES_CLASS_MISSINGNESS = np.arange(0.1, 0.71, 0.1)
 
 # # Run GMM simulation study (if not in results folder) UNCOMMENT IF YOU WANT TO RUN THE SIMULATION AGAIN, it takes a while
 # results_gmm = simulation_study_gmm(
-#     result_path="results\\synthetic_gmm_alternative",
-#     data_path="data\\synthetic_gmm_alternative",
+#     result_path="results\\synthetic_gmm_alternative", # CHANGE THIS IF YOU RUN TO NOT OVERWRITE OUR RESULTS
+#     data_path="data\\synthetic_gmm_alternative", # CHANGE THIS IF YOU RUN, TO NOT OVERWRITE OUR RESULTS
 #     means_to_test=MEANS_GMM,
 #     cov_matrices_to_test=COVS_GMM,
 #     weights_to_test=WEIGHTS_GMM,
