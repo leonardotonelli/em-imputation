@@ -30,7 +30,7 @@ def initialize_parameters(X, y, n_components, random_state=42):
             cov_c = np.cov(X_c, rowvar=False) + np.eye(n_features) * 1e-6
             Sigma.append(cov_c)
             # Update mixing coef based on counts (optional, but helpful)
-            pi[c] = len(X_c) / len(y[y != -1])
+            pi[c] = len(X_c) / np.sum(~np.isnan(y))
         else:
             # Fallback: Random initialization if no labels for this class
             mu[c] = global_mean 
@@ -187,9 +187,9 @@ if __name__ == "__main__":
     y_true = np.array([0]*50 + [1]*50 + [2]*50)
     
     # 2. Create Semi-Supervised Scenario (Mask 80% of labels)
-    y_semi = y_true.copy()
+    y_semi = y_true.astype(float)
     mask = np.random.rand(len(y_semi)) < 0.8 # 80% missing
-    y_semi[mask] = -1  # -1 denotes unlabeled
+    y_semi[mask] = np.nan  # -1 denotes unlabeled
     
     # 3. Run Algorithm
     pi_est, mu_est, Sigma_est, num_iterations = em_semi_supervised(X, y_semi, n_components=3)
