@@ -10,22 +10,22 @@ sns.set_style("whitegrid")
 sns.set_context("paper", font_scale=1.2)
 plt.rcParams['font.family'] = 'serif'
 
-def plot_error_heatmap(df, figsize=(12, 4)):
+def plot_error_heatmap(df, figsize=(12, 3)):
     """
     Create heatmap showing average error across all mechanisms.
     """
     df_error = prepare_error_data(df)
     
-    fig, axes = plt.subplots(1, 3, figsize=figsize, sharey=True)
+    # 'wspace': 0.5 adds significant horizontal space between plots (default is usually ~0.2)
+    fig, axes = plt.subplots(1, 3, figsize=figsize, sharey=True, 
+                             gridspec_kw={'wspace': 0.3}) 
+    
     cmaps = ['RdYlGn_r', 'viridis_r', 'magma_r']
-    # Define annotation keyword arguments to set a smaller font size
-    annot_font_size = 8  # You can adjust this value
-    annot_kws = {"fontsize": annot_font_size}
+    annot_kws = {"fontsize": 9}
     
     for idx, mechanism in enumerate(['MCAR', 'MAR', 'MNAR']):
         data = df_error[df_error['mechanism'] == mechanism]
         
-        # data.loc[:, 'missingness_pct'] = data.loc[:, 'missingness_pct'].astype(str)
         pivot_data = data.pivot_table(
             values='error',
             index='method',
@@ -43,22 +43,16 @@ def plot_error_heatmap(df, figsize=(12, 4)):
             fmt='.2f',
             cmap=cmaps[idx],
             ax=axes[idx],
-            cbar_kws={'label': 'Mean Error'},
+            cbar=False,
             vmin=0,
             vmax=pivot_data.values.max(),
+            # square=True, 
             annot_kws=annot_kws
         )
 
-        # --- NEW CODE BLOCK: Force x-axis labels to be integers ---
-        # 1. Get the current labels (which are likely floats like '10.0', '20.0')
         x_labels = [label.get_text() for label in axes[idx].get_xticklabels()]
-        
-        # 2. Format them to remove the '.0' (e.g., '10.0' -> '10')
         integer_labels = [label.replace('.0', '') for label in x_labels]
-        
-        # 3. Set the new integer labels back to the axis
         axes[idx].set_xticklabels(integer_labels)
-        # -----------------------------------------------------------
 
         axes[idx].set_title(mechanism, fontweight='bold', fontsize=12)
         axes[idx].set_xlabel('Missingness %', fontsize=10)
@@ -68,9 +62,9 @@ def plot_error_heatmap(df, figsize=(12, 4)):
         else:
             axes[idx].set_ylabel('')
     
-    plt.suptitle('Proportion Error Comparison Across Missingness Mechanisms', 
-                 fontsize=14, fontweight='bold', y=1.02)
-    plt.tight_layout()
+    # plt.suptitle('Proportion Error Comparison Across Missingness Mechanisms', 
+    #              fontsize=14, fontweight='bold', y=1.02)
+    # plt.tight_layout()
     return fig
 
 

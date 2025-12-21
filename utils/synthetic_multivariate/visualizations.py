@@ -13,20 +13,21 @@ warnings.simplefilter(action='ignore', category=SyntaxWarning)
 sns.set_style("whitegrid")
 sns.set_context("paper", font_scale=1.2)
 plt.rcParams['font.family'] = 'serif'
+annot_kws = {"fontsize": 9}
 
-def plot_error_heatmap(df, figsize=(12, 4)):
-    """
-    Create heatmap showing average error across all mechanisms.
-    """
+def plot_error_heatmap(df, figsize=(12, 3)):
     df_error = prepare_error_data(df)
     
-    fig, axes = plt.subplots(1, 3, figsize=figsize, sharey=True)
+    # 'wspace': 0.5 adds significant horizontal space between plots (default is usually ~0.2)
+    fig, axes = plt.subplots(1, 3, figsize=figsize, sharey=True, 
+                             gridspec_kw={'wspace': 0.3}) 
+    
     cmaps = ['RdYlGn_r', 'viridis_r', 'magma_r']
     
     for idx, mechanism in enumerate(['MCAR', 'MAR', 'MNAR']):
         data = df_error[df_error['mechanism'] == mechanism]
         data.loc[:,"missingness_pct"] = round(data.loc[:,"missingness_pct"], 2)
-        # data.loc[:,"error"] = round(data.loc[:,"error"], 1)
+        
         pivot_data = data.pivot_table(
             values='error',
             index='method',
@@ -34,7 +35,6 @@ def plot_error_heatmap(df, figsize=(12, 4)):
             aggfunc='mean'
         )
         
-        # Reorder methods
         method_order = ['EM', 'MICE', 'KNN', 'Median', 'Mean']
         pivot_data = pivot_data.reindex(method_order)
         
@@ -44,9 +44,11 @@ def plot_error_heatmap(df, figsize=(12, 4)):
             fmt='.2f',
             cmap=cmaps[idx],
             ax=axes[idx],
-            cbar_kws={'label': 'Mean Error'},
+            cbar=False,
+            square=True, 
             vmin=0,
-            vmax=pivot_data.values.max()
+            vmax=pivot_data.values.max(),
+            annot_kws=annot_kws
         )
         
         axes[idx].set_title(mechanism, fontweight='bold', fontsize=12)
@@ -57,9 +59,9 @@ def plot_error_heatmap(df, figsize=(12, 4)):
         else:
             axes[idx].set_ylabel('')
     
-    plt.suptitle('Error Comparison Across Missingness Mechanisms', 
-                 fontsize=14, fontweight='bold', y=1.02)
-    plt.tight_layout()
+    # plt.suptitle('Error Comparison Across Missingness Mechanisms', 
+    #              fontsize=14, fontweight='bold', y=1.05)
+    
     return fig
 
 
@@ -1055,27 +1057,25 @@ def create_correlation_report(df, output_folder='plots'):
     """
     os.makedirs(output_folder, exist_ok=True)
     
-    # --- Plot 1: Independence (Covariance Index 0) ---
-    # In this scenario (Identity Matrix), EM should not perform significantly better than Mean
     fig_indep = plot_method_comparison_flexible(
         df,
         x_axis='missingness_pct',
         y_axis='error',
-        mechanism='MAR',      # We compare under MAR
+        mechanism='MAR',      
         cov_idx=0,            # Index 0 = Independence (from main.py config)
         methods=['EM', 'MICE', 'KNN', 'Mean'],
         figsize=(8, 6)
     )
     
     if fig_indep:
-        # Overwrite title and labels for academic clarity
+       
         ax = fig_indep.axes[0]
         
-        # UPDATED TITLE: Specifies Independence and Sigma = I
+        
         ax.set_title(r"Impact of Correlation: Independence ($\Sigma = I$)\nMechanism: MAR", 
                      fontweight='bold', fontsize=14)
         
-        # UPDATED Y-LABEL: Specifies the error formula
+        
         ax.set_ylabel(r'Mean Estimation Error ($||\hat{\mu} - \mu||_2$)', fontsize=12)
         
         # Save
@@ -1084,30 +1084,24 @@ def create_correlation_report(df, output_folder='plots'):
         plt.close(fig_indep)
         print(f"Saved: {save_path}")
 
-    # --- Plot 2: Strong Correlation (Covariance Index 2) ---
-    # In this scenario (rho=0.9), EM should significantly outperform Mean Imputation
+
     fig_strong = plot_method_comparison_flexible(
         df,
         x_axis='missingness_pct',
         y_axis='error',
         mechanism='MAR',
-        cov_idx=2,            # Index 2 = Strong Correlation (from main.py config)
+        cov_idx=2,            # Index 2 = Strong Correlation 
         methods=['EM', 'MICE', 'KNN', 'Mean'],
         figsize=(8, 6)
     )
     
     if fig_strong:
-        # Overwrite title and labels for academic clarity
-        ax = fig_strong.axes[0]
         
-        # UPDATED TITLE: Specifies Rho = 0.9
+        ax = fig_strong.axes[0]
         ax.set_title(r"Impact of Correlation: Strong Correlation ($\rho = 0.9$)" + "\nMechanism: MAR", 
                      fontweight='bold', fontsize=14)
-        
-        # UPDATED Y-LABEL
         ax.set_ylabel(r'Mean Estimation Error ($||\hat{\mu} - \mu||_2$)', fontsize=12)
         
-        # Save
         save_path = os.path.join(output_folder, 'error_strong_correlation_MAR.png')
         fig_strong.savefig(save_path, dpi=300, bbox_inches='tight')
         plt.close(fig_strong)

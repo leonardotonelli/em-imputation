@@ -102,10 +102,10 @@ PERCENTAGES_CLASS_MISSINGNESS = np.arange(0.1, 0.71, 0.1)
 results_gmm = pd.read_csv("results\\synthetic_gmm\\simulation_results_gmm.csv")
 
 # Visualize GMM results
-create_full_report_gmm(results_gmm, output_folder='plots\\synthetic_gmm_alternative')
+create_full_report_gmm(results_gmm, output_folder='plots\\synthetic_gmm')
 
 print("\n" + "="*80)
 print("ALL SIMULATION STUDIES COMPLETED")
 print("="*80)
-print("\nMultivariate Gaussian results: plots\\synthetic_gmm_alternative")
+print("\nMultivariate Gaussian results: plots\\synthetic_gmm")
 print("GMM results: plots\\synthetic_gmm")
