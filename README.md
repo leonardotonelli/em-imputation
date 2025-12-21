@@ -13,7 +13,7 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-- The repository contains `requirements.txt` with pinned versions; use `pip freeze > requirements.freeze.txt` to capture an exact environment for publication or review.
+- The repository contains `requirements.txt` with pinned versions.
 
 - Randomness in experiments is controlled via the `random_state` parameter available in the simulation and utility functions.
 
@@ -36,6 +36,7 @@ project-luca-leo-vale_stat/
 ├── simulation_run.py
 ├── report.tex
 ├── report.pdf
+├── references.bib
 ├── real_example.ipynb
 ├── additional_visualizations.ipynb
 ├── data/
@@ -46,10 +47,9 @@ project-luca-leo-vale_stat/
 │   ├── synthetic_multivariate/
 │   │   ├── datasets_complete/
 │   │   └── datasets_missingness/
-│   ├── synthetic_GMM/
-│   │   ├── datasets_complete/
-│   │   └── datasets_missingness/
-│   └── synthetic_gmm_alternative/
+│   └── synthetic_GMM/
+│       ├── datasets_complete/
+│       └── datasets_missingness/
 ├── results/
 │   ├── synthetic_multivariate/
 │   │   └── simulation_results.csv
@@ -59,7 +59,11 @@ project-luca-leo-vale_stat/
 │       ├── 10_d/
 │       └── 2_d/
 ├── plots/
+│   ├── additional_visualizations/
+│   │   ├── gmm_clustering_scearios/
+│   │   └── mvn_covariance_structures/
 │   ├── synthetic_multivariate/
+│   ├── real_example/
 │   └── synthetic_gmm/
 └── utils/
     ├── synthetic_multivariate/
@@ -95,6 +99,7 @@ Top-level files
 - `additional_visualizations.ipynb` — supplementary visualization notebook (see Section 4).
 - `report.tex` — LaTeX source of the project report.
 - `report.pdf` — pdf project report.
+- `references.bib` — BibTex file for references compilation
 
 Data
 - `data/` — root data directory.
@@ -113,7 +118,11 @@ Results and plots
   - `synthetic_multivariate/simulation_results.csv` — aggregated MVN experiment results.
   - `synthetic_gmm/simulation_results_gmm.csv` — aggregated GMM experiment results.
   - `real_example/` — notebook outputs for the real example (e.g., `10d` and `2d` metrics CSVs).
-- `plots/` — figure outputs produced from the `results/` CSV files; organized by study (`synthetic_multivariate`, `synthetic_gmm`, `synthetic_multivariate` missingness mechanisms, etc.).
+- `plots/` — figure outputs produced from the `results/` CSV files; organized by study (`synthetic_multivariate`, `synthetic_gmm`, `synthetic_multivariate` missingness mechanisms, etc.). 
+  - `synthetic_multivariate/` — plots for simulations of multivariate gaussian case
+  - `synthetic_gmm/` — plots for simulations of gaussian mixture case
+  - `additional_visualizations/` — visualizations produced and saved in the `additional_visualizations.ipynb` notebook
+  - `real_example/` — visualizations produced and saved in the `real_example.ipynb` notebook
 
 Utilities and core code
 - `utils/` — contains implementation modules and small test fixtures.
@@ -138,16 +147,16 @@ Utilities and core code
 
 ## 5. Notebooks Description
 
-- `additional_visualizations.ipynb`: used to create the supplementary visualizations that are included in the report; it provides flexible plotting utilities for independent exploration of simulation results.
+- `additional_visualizations.ipynb`: used to create the supplementary visualizations that are included in the report; it provides flexible plotting utilities for independent exploration of simulation results. The resulting plots are saved in `plots/additional_visualizations/`
 
 - `real_example.ipynb`: runs the real-world example described in the report and reproduces the figures and metrics referenced in that section.
 
 
 ## 6. Utils and Testing Behavior
 
-- Each module file inside `utils/` (except "real_example/evaluation.py) can be executed independently as a small test runner. When executed, a module runs tests of its most relevant functions and writes the test outputs into a `tests/` or `test_outputs/` folder located alongside that module.
+- Each module file inside `utils/` (except "real_example/evaluation.py) can be executed independently as a small test runner. When executed, a module runs tests of its most relevant functions and writes the test outputs into a `tests/` folder located alongside that module.
 
-- Some unit/functional tests depend on previously generated data or aggregated results (for example, visualizers often expect a `results` CSV to be present). Therefore the execution order of utils tests is important: the first test(s) in a test sequence should generate or download any required datasets so that subsequent tests can operate on those artifacts.
+- Some unit/functional tests depend on previously generated data or aggregated results (for example, visualizers often expect a results CSV to be present). Therefore the execution order of utils tests is important: the first test(s) in a test sequence should generate or download any required datasets so that subsequent tests can operate on those artifacts.
 
 - For reproducible grading and review, run the modules that generate synthetic data first, then run dependent module tests and visualizers in the order they state in their docstrings or the module headers.
 

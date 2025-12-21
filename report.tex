@@ -126,7 +126,8 @@ Furthermore, comparisons between EM and imputation strategies in specific contex
 The remainder of this report is organized as follows: Section 2 reviews the theoretical underpinnings of the EM algorithm and missing data mechanisms.
 Section 3 details our full factorial simulation design, including the data-generating processes and the ``amputation'' procedures used to introduce controlled missingness \citep{Schouten2018}.
 Section 4 presents the empirical results, analyzing estimation error and execution time across varying sample sizes and correlation structures.
-Finally, Section 5 discusses the practical implications of these findings for researchers choosing between statistical rigor and computational feasibility.
+Finally, Section 5 discusses the practical implications of these findings for researchers choosing between statistical rigor and computational feasibility. \\
+All simulations and applications, including the data generation processes for MVN and GMM, the implementation of the EM algorithm, and the evaluation scripts, are available in the accompanying code repository \cite{repository}. The implementation relies on standard Python libraries (\texttt{numpy}, \texttt{scikit-learn}, \texttt{scipy}) to ensure reproducibility and facilitate further research.
 
 % --- Section 2: Theory / Background ---\
 
@@ -333,9 +334,18 @@ The missing value is then imputed using a summary statistic of these neighbors:
     \item \textbf{Categorical Features:} The missing value is replaced by the mode among the $k$ neighbors.
 \end{itemize}
 
-The performance of kNN imputation depends heavily on the choice of $k$ (the number of neighbors).
-In general imputation scenarios where there is no specific classification target (i.e., no categorical response variable $Y$), or when working with purely numerical datasets, it is standard practice to set $k=10$.
-On the other hand, in classification problems where the dataset includes a categorical target variable (e.g., class labels in a Gaussian Mixture Model context), the optimal $k$ should be selected to maximize classification performance rather than just imputation accuracy \citep{Choudhury2020}. As they include in the paper a good strategy to choose the \textbf{optimal number} of neighbors $k$ is to perform a \textbf{10-fold cross validation} on a complete dataset, with missing values imputed with the mean or the mode for continuous or categorical features respectively.
+The selection of the hyperparameter $k$ was tailored to the specific demands of each simulation 
+scenario. For the Multivariate Normal (MVN) experiments, 
+where the focus was on high-dimensional parameter recovery across a vast experimental grid, 
+we set $k=10$. While this is a heuristic, it represents a standard practice in many practical 
+applications, striking an optimal balance between bias-reduction and the management of 
+computational complexity in large-scale simulations. In contrast, for the Semi-Supervised 
+GMM scenarios, the lower dimensionality of the imputation task (univariate label imputation) 
+allowed for a more rigorous approach. In this setting, we implemented a 10-fold cross-validation
+ for each individual dataset to select the optimal number of neighbors. This ensured that the 
+ choice of $k$ was dynamically tuned to maximize classification performance, leveraging the 
+ lighter computational burden of the semi-supervised framework to achieve higher predictive 
+ precision.
 To calculate similarity between observations, the NaN Euclidean distance is employed \citep{Khan2026}.
 The distance $d(\mathbf{x}, \mathbf{y})$ between two feature vectors $\mathbf{x}$ and $\mathbf{y}$ is defined as:
 \begin{equation}
@@ -371,6 +381,11 @@ The imputation proceeds through the standard iterative scheme using the chosen e
     \end{itemize}
     \item \textbf{Convergence:} Repeat the cycle until the stopping criterion is met.
 \end{enumerate}
+The imputation was implemented using the \textit{miceforest} library \cite{miceforest2025}. Aside 
+from default settings, we capped the number of iterations at five. This choice was informed 
+by computational efficiency and is supported by existing literature suggesting that five 
+iterations are often sufficient 
+for the MICE algorithm to achieve convergence and stable performance \cite{vanbuuren2011mice}.
 
 \subsection{Random Forest}
 Random Forest is an ensemble method that consists of building a forest of decision trees grown from a randomized variant of the tree induction algorithm \citep{Stekhoven2012}.
@@ -383,7 +398,8 @@ The method combines \textbf{Bagging} with \textbf{random variable selection} at 
 This injection of randomness serves to \textbf{decorrelate the decision trees} in the ensemble.
 While individual randomized trees might have slightly higher bias, the averaging process significantly \textbf{reduces variance}, leading to an overall lower generalization error \citep{Louppe2014}.
 
-\paragraph{Parameters of Random Forest} In our study, we decided to use the default parameters. This choice was made due to the fact that the main focus of the project wasn't searching for the optimal parameter (e.g. number of trees, maximum depth of the tree, function to measure the quality of the split) to train the best classifier.
+\paragraph{Parameters of Random Forest} In our study, we decided to use the default parameters. This choice was made due to the fact that the main focus of the project wasn't searching for the optimal parameter to train the best classifier. 
+Some key default hyperparameters are: \texttt{n\_estimators=100}, \texttt{criterion='gini'}, no maximum depth. 
 
 % --- Section 3: Simulation setup ---
 
@@ -543,13 +559,19 @@ To validate the findings obtained from the synthetic simulations, we utilize the
 The dataset comprises $N=76$ observations of colorectal polyps extracted from colonoscopic videos. The feature space includes texture, color, and 3D shape descriptors extracted using Structure-from-Motion (SfM). The classification task is binary ($g=2$): distinguishing between lesions requiring resection (\textbf{Class 1}: Adenomas and Serrated Adenomas) and those that do not (\textbf{Class 0}: Hyperplastic Polyps).
 
 \paragraph{Natural Missingness Mechanism.}
-Unlike the synthetic amputation described in Section 3.2, this dataset exhibits a ``natural'' missingness mechanism derived from clinical disagreement. Ground truth labels were established only when there was unanimous agreement among 7 endoscopists (4 experts, 3 beginners). Cases with disagreement among experts were treated as having missing labels (NA). This mechanism effectively simulates a \textit{Missing Not at Random} (MNAR) or complex MAR scenario, where the missingness is intrinsic to the diagnostic difficulty of the lesion \citep{Lyu2023}.
+Unlike the synthetic amputation described in Section 3.2, this dataset exhibits a 
+``natural'' missingness mechanism derived from clinical disagreement. Ground truth 
+labels were established only when there was unanimous agreement among 7 endoscopists 
+(4 experts, 3 beginners). Cases with disagreement among experts were treated as having 
+missing labels (NA). This mechanism effectively simulates a \textit{Missing Not at Random} 
+(MNAR) or complex MAR scenario, where the missingness is intrinsic to the diagnostic 
+difficulty of the lesion \citep{Lyu2023}. This procedure results in a 42\% of missing labels.
 
 \paragraph{Preprocessing and Dimensionality.}
 Given the limited sample size ($N=76$) relative to the original high-dimensional feature space, we applied Principal Component Analysis (PCA) to reduce the dimensionality. We constructed two experimental configurations to mirror the simulation conditions:
 \begin{itemize}
-    \item \textbf{High Dimensionality ($p=10$):} A setting where the sample-to-feature ratio is low ($N/p \approx 7.6$), challenging the covariance estimation.
-    \item \textbf{Low Dimensionality ($p=3$):} A compressed setting ($N/p \approx 25$) designed to satisfy the asymptotic requirements of the EM algorithm.
+    \item \textbf{High Dimensionality ($p=10$):} A setting where the sample-to-feature ratio is low ($N/p \approx 7.6$), challenging the covariance estimation. In this setting the explained variance is 73\%.
+    \item \textbf{Low Dimensionality ($p=3$):} A compressed setting ($N/p \approx 25$) designed to satisfy the asymptotic requirements of the EM algorithm.In this setting the explained variance is 73\%.
 \end{itemize}
 % --- Section 4: Results ---
 
@@ -565,7 +587,7 @@ To assess the overall robustness of the imputation strategies, Figure \ref{fig:h
 \textit{Note on Aggregation: The data presented in Figure \ref{fig:heatmap_mvn} are obtained by averaging the Mean Estimation Error across all structural configurations (Independence, Weak Correlation, Strong Correlation, Block Correlation) and all sample sizes ($N \in [100, 5000]$).}
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=1.0\textwidth]{plots/synthetic_multivariate/error_heatmap_all.png}
+    \includegraphics[width=0.8\textwidth]{plots/synthetic_multivariate/error_heatmap_all.png}
     \caption{\textbf{Mean Error Comparison Across Missingness Mechanisms.} The heatmaps display the Mean Estimation Error for varying missingness percentages (10\%--30\%), with the different imputation methods (EM, MICE, KNN, Median, Mean.).}
     \label{fig:heatmap_mvn}
 \end{figure}
@@ -664,7 +686,7 @@ We evaluated the robustness of the algorithms when the missingness mechanism is 
 \begin{figure}[H]
     \centering
     % MNAR Plot: Shows that error does not go to zero
-    \includegraphics[width=0.7\textwidth]{plots/additional_visualizations/mvn_covariance_structures/MNAR_Strong_cov_error.png}
+    \includegraphics[width=0.6\textwidth]{plots/additional_visualizations/mvn_covariance_structures/MNAR_Strong_cov_error.png}
     \caption{\textbf{Mean Estimation Error under MNAR.} Note the vertical scale shift compared to MAR. Even the EM algorithm (red) incurs a persistent bias that does not vanish, confirming that likelihood maximization cannot correct for self-censorship without explicit modeling of the missingness mechanism.}
     \label{fig:mnar_failure}
 \end{figure}
@@ -674,7 +696,7 @@ Can ``Big Data'' solve the missing data problem? We analyzed the asymptotic beha
 
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=0.8\textwidth]{plots/synthetic_multivariate/MNAR/sample_size_error_MNAR.png}
+    \includegraphics[width=0.6\textwidth]{plots/synthetic_multivariate/MNAR/sample_size_error_MNAR.png}
     \caption{Mean Estimation Error vs. Sample Size under MNAR. Note that standard deviation bars are omitted from the visualization to ensure clarity, as their magnitude ($\approx 0.1$) would obscure the trend lines.}
     \label{fig:mnar_asymptotic}
 \end{figure}
@@ -685,7 +707,7 @@ As shown in Figure \ref{fig:mnar_asymptotic}, the error does not converge to zer
 Finally, we evaluate the scalability of the algorithms. The reported execution times represent the average performance computed across all simulation parameters, aggregating results over the different covariance structures and missingness percentages. Figure \ref{fig:time_complexity} specifically illustrates the trends for the MAR mechanism; since the computational profiles for MCAR and MNAR are analogous, their respective plots are omitted here and can be found in the Appendix.
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=0.8\textwidth]{plots/synthetic_multivariate/MNAR/sample_size_time_MNAR.png}
+    \includegraphics[width=0.6\textwidth]{plots/synthetic_multivariate/MNAR/sample_size_time_MNAR.png}
     \caption{\textbf{Computational Time vs. Sample Size (Log Scale).} The EM algorithm (red) incurs the highest absolute cost, though it remains manageable ($<15$s) for $N=5000$. kNN (green) is extremely fast but exhibits a steep relative growth rate due to distance matrix calculations. MICE (blue) remains stable around 1 second.}
     \label{fig:time_complexity}
 \end{figure}
@@ -707,7 +729,7 @@ First, we analyze the overall robustness of the methods.
 
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=1.0\textwidth]{plots/synthetic_gmm/error_heatmap_all_gmm.png}
+    \includegraphics[width=0.8\textwidth]{plots/synthetic_gmm/error_heatmap_all_gmm.png}
     \caption{\textbf{Global Proportion Estimation Error.} The heatmap compares the stability of EM against imputation methods (RF, kNN). EM remains robust (green) even at 70\% missingness, whereas RF and kNN degrade linearly.}
     \label{fig:gmm_heatmap}
 \end{figure}
@@ -767,7 +789,7 @@ Finally, we analyze the computational cost of the methods.
 
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=0.7\textwidth]{plots/additional_visualizations/gmm_clustering_scenarios/GMM_Time.png}
+    \includegraphics[width=0.6\textwidth]{plots/additional_visualizations/gmm_clustering_scenarios/GMM_Time.png}
     \caption{\textbf{Execution Time vs. Sample Size (GMM).} Note the log scale on the Y-axis. Random Forest (Green) is the slowest, followed by EM (Blue), with kNN (Orange) being the fastest.}
     \label{fig:gmm_time}
 \end{figure}
@@ -777,7 +799,16 @@ In this context, Random Forest proved to be the most computationally expensive m
 % --- SECTION 5: REAL DATA APPLICATION ---
 \subsection{Real Data Validation}
 
-We applied the semi-supervised framework to the Gastrointestinal Lesions dataset described in Section 3.6. The goal was to verify if the trade-off between dimensionality and sample size observed in the simulations holds for real medical data.
+We applied the semi-supervised framework to the Gastrointestinal Lesions dataset described in Section 3.6. The goal was to verify if the trade-off between dimensionality and sample size observed in the simulations holds for real medical data. 
+Implementing a semi-supervised Gaussian Mixture Model (GMM) requires assuming that the underlying data follows a Gaussian distribution. In practice, these strict distributional 
+assumptions are rarely met by empirical data and, consequently, are often overlooked by 
+practitioners. Our preliminary diagnostic tests (provided in the Appendix) confirmed that 
+the dataset does not strictly adhere to these assumptions.
+
+However, GMMs have historically demonstrated good robustness and  
+performance even when these theoretical conditions are not perfectly satisfied (\cite{Setiadi2024, sampaio2024regularizationoptimizationmodelbasedclustering, Liu2022GMMchi}). 
+This empirical success motivated us to proceed with the analysis, testing the 
+framework’s resilience and effectiveness in a realistic clinical context.
 
 \subsubsection{Results Analysis}
 The performance of the imputation strategies for both high ($p=10$) and low ($p=3$) dimensional spaces is summarized in Table \ref{tab:real_data_results}.
@@ -861,9 +892,66 @@ In Section 4.1.4, we analyzed the computational time for the MAR mechanism. For 
     \caption{Computational Time vs. Sample Size (Log Scale) for MCAR and MNAR mechanisms.}
     \label{fig:time_appendix}
 \end{figure}
+Other than these, additional results' plots can be founded in the code repository \cite{repository}.
 
-\subsection{Code Availability}
-All simulations, including the data generation processes for MVN and GMM, the implementation of the EM algorithm, and the evaluation scripts, are available in the accompanying code repository. The implementation relies on standard Python libraries (\texttt{numpy}, \texttt{scikit-learn}, \texttt{scipy}) to ensure reproducibility and facilitate further research.
+
+\subsection{Normality Diagnostics for Real-World Data}
+
+To evaluate the adherence of the Gastrointestinal Lesions dataset to the Gaussian assumptions 
+required by the semi-supervised EM algorithm, we performed a series of multivariate normality 
+diagnostics for each class. Specifically, we generated Q-Q plots of the squared 
+\textbf{Mahalanobis distances} against a $\chi^2$ distribution (Figure \ref{fig:grid_2x2}) 
+and conducted the \textbf{Henze-Zirkler (HZ) test} for multinormality. 
+
+These diagnostics were performed using the full set of ground-truth labels; conducting these 
+tests on the observed labels alone was not ideal, as the resulting sample sizes for 
+each cluster would have been too small to provide sufficient statistical power. The HZ tests 
+rejected the null hypothesis of multinormality in nearly all experimental configurations, with 
+the sole exception of Cluster 0 in the 2-Principal Component case. 
+
+However, even in the instance where the test failed to reject the null hypothesis, 
+the corresponding Q-Q plots exhibit noticeable non-linearities and deviations 
+from the reference line. This suggests that the formal test results may not be 
+entirely reliable in this context due to the small sample size ($N=76$), which often 
+lacks the power to detect departures from normality or, conversely, may produce unstable 
+results. The lack of a clear linear trend in the Q-Q plots across all dimensions indicates 
+that the Gaussian assumption is likely violated, yet the EM algorithm's performance suggests 
+it retains a degree of practical robustness to these distributional deviations.
+
+\begin{figure}[htbp]
+     \centering
+     % --- Row 1 ---
+     \begin{subfigure}[b]{0.3\textwidth}
+         \centering
+         \includegraphics[width=\textwidth]{plots/additional_visualizations/real_example/qq_10d_0.png}
+         \caption{Class 0, 10 Principal Components}
+     \end{subfigure}
+     \hspace{5pt}
+     \begin{subfigure}[b]{0.3\textwidth}
+         \centering
+         \includegraphics[width=\textwidth]{plots/additional_visualizations/real_example/qq_10d_1.png}
+         \caption{Class 1, 10 Principal Components}
+     \end{subfigure}
+
+     \vspace{1cm} % Adds vertical space between the rows
+
+     % --- Row 2 ---
+     \begin{subfigure}[b]{0.3\textwidth}
+         \centering
+         \includegraphics[width=\textwidth]{plots/additional_visualizations/real_example/qq3d0.png}
+         \caption{Class 0, 2 Principal Components}
+     \end{subfigure}
+     \hspace{5pt}
+     \begin{subfigure}[b]{0.3\textwidth}
+         \centering
+         \includegraphics[width=\textwidth]{plots/additional_visualizations/real_example/qq3d1.png}
+         \caption{Class 1, 2 Principal Components}
+     \end{subfigure}
+     
+     \caption{QQ plots of Mahalanobis distance}
+     \label{fig:grid_2x2}
+\end{figure}
+
 
 \end{document}
 
