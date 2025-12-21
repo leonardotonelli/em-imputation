@@ -8,6 +8,9 @@ report.synctex.gz
 __pycache__
 report.aux
 report.out
+report.bbl
+report.toc
+report.blg
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

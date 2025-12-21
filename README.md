@@ -34,7 +34,8 @@ project-luca-leo-vale_stat/
 ├── README.md
 ├── requirements.txt
 ├── simulation_run.py
-├── writeup.tex
+├── report.tex
+├── report.pdf
 ├── real_example.ipynb
 ├── additional_visualizations.ipynb
 ├── data/
@@ -149,5 +150,10 @@ Utilities and core code
 - Some unit/functional tests depend on previously generated data or aggregated results (for example, visualizers often expect a `results` CSV to be present). Therefore the execution order of utils tests is important: the first test(s) in a test sequence should generate or download any required datasets so that subsequent tests can operate on those artifacts.
 
 - For reproducible grading and review, run the modules that generate synthetic data first, then run dependent module tests and visualizers in the order they state in their docstrings or the module headers.
+
+## Individual Contributions
+Luca Civilla handled the EM explanation and specification for the semi-supervised case, authoring the corresponding sections of the report. Additionally, he was in charge of hyperparameter selection for all simulations—ranging from algorithm configurations to initializations—and collaborated on the exploration of imputation algorithms. Leonardo Tonelli was responsible for coding practices and repository architecture, as well as developing the missingness mechanisms and the real-world data application. Valerio Viscovo provided primary supervision for the reporting and interpretation of results, while also contributing to the exploration of the various imputation algorithms used for comparison.
+
+We believe the workload was equally distributed among us. Furthermore, a significant portion of the project was completed during joint sessions, where individual contributions were naturally integrated and are therefore difficult to distinguish.
 
 ---
